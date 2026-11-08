@@ -86,6 +86,13 @@ func (s *Session) StartGoogleAccountPairing(cookies map[string]string) error {
 }
 
 func (s *Session) Connect() error {
+	// Google rotates account cookies, and this refreshes them and the session ID. Without
+	// it a saved login is rejected as soon as it reconnects. Failing here isn't fatal.
+	if err := s.client.FetchConfig(s.ctx); err != nil {
+		logger.Warn().Err(err).Msg("could not fetch config before connecting")
+	} else {
+		s.deliverSession()
+	}
 	if err := s.client.Connect(s.ctx); err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}

@@ -38,6 +38,41 @@ import Testing
         #expect(request.messagePayload.participantID == "me-7")
     }
 
+    @Test func thePhonesFirstSettingsLoadTheInboxOnceAndConversationsCanBeSentTo() async throws {
+        let sessions = FakeSessionFactory()
+        let client = LibGMMessagingClient(makeSession: sessions.factory)
+        let events = client.events()
+        try await client.connect(using: Fixtures.session)
+        let session = try #require(sessions.latest)
+        session.stubInbox(.success(.with { $0.conversations = [ProtoFixtures.conversation("c1", outgoingID: "me-7")] }))
+
+        session.emit(.settings(GM.Settings()))
+        session.emit(.settings(GM.Settings()))
+        session.emit(.connectionRecovered)     // the pump has handled both settings once this arrives
+        let received = await events.first(3)
+
+        #expect(received.contains(.initialSyncCompleted))
+        #expect(session.calls == ["connect", "list:inbox:50"])
+        try await client.sendText("hello", to: ConversationID("c1"))
+        #expect(session.sentRequests.count == 1)
+    }
+
+    @Test func aFailedInboxLoadIsReportedAndRetriedOnTheNextSettings() async throws {
+        let sessions = FakeSessionFactory()
+        let client = LibGMMessagingClient(makeSession: sessions.factory)
+        let events = client.events()
+        try await client.connect(using: Fixtures.session)
+        let session = try #require(sessions.latest)
+        session.stubInbox(.failure(.bridge("no answer")))
+
+        session.emit(.settings(GM.Settings()))
+        #expect(await events.first(1) == [.connectionInterrupted(reason: "Couldn't load your conversations.")])
+
+        session.stubInbox(.success(GM.ListConversationsResponse()))
+        session.emit(.settings(GM.Settings()))
+        #expect(await events.first(1) == [.initialSyncCompleted])
+    }
+
     @Test func sendingToAnUnknownConversationFails() async throws {
         let sessions = FakeSessionFactory()
         let client = LibGMMessagingClient(makeSession: sessions.factory)
