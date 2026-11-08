@@ -63,6 +63,13 @@ private func bubble(_ id: String, in messages: [Message]) throws -> MessageBubbl
         #expect(document.symbolName(showing: nil) == "doc.richtext")
     }
 
+    @Test func onlyAPictureCountsAsHavingOne() throws {
+        let document = Attachment(id: "a2", fileName: "a.pdf", mimeType: "application/pdf", byteCount: nil)
+
+        #expect(try bubble("m1", in: [message("m1", parts: [.attachment(photo), .text("Look")])]).hasPicture)
+        #expect(try !bubble("m1", in: [message("m1", parts: [.attachment(document)])]).hasPicture)
+    }
+
     @Test func aDeletedMessageSaysSoInsteadOfItsContent() throws {
         let deleted = message("m1", parts: [.text("oops")], status: .deleted)
 

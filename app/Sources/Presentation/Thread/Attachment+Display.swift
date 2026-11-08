@@ -17,6 +17,11 @@ public extension Attachment {
         return mimeType == "application/pdf" ? "doc.richtext" : "doc"
     }
 
+    /// Pictures run to the bubble's edges. A failed one is only a line of text, so it's inset like text.
+    func fillsBubble(showing content: AttachmentContent?) -> Bool {
+        isImage && content != .failed
+    }
+
     /// The file's icon, or a warning once fetching it has failed.
     func symbolName(showing content: AttachmentContent?) -> String {
         content == .failed ? "exclamationmark.triangle" : symbolName
