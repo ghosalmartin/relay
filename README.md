@@ -23,10 +23,23 @@ Licensed AGPL-3.0, because libgm is (see LICENSE).
 Early and unfinished. There are no releases yet, so you have to build it yourself.
 
 - Package tests and UI tests pass, but the UI tests run against a scripted client.
-- **It has not been tried with a real phone yet**, so pairing, real messages and real
-  notifications are all unproven.
-- Written so far: Google account pairing, inbox, threads, sending text, and macOS notifications that open
-  their conversation when clicked.
+- **Tested with one real Android phone:** Google account pairing, the inbox and threads, receiving
+  pictures and audio, sending text and pictures, macOS notifications, and reconnecting after a
+  restart without pairing again.
+- **Written but not confirmed on a real phone:** reactions, replies, shared locations, contact
+  photos in the inbox, clicking a notification to open its conversation, notifications with the
+  window closed, and reconnecting automatically when the phone stops answering.
+- **Not proven yet:** how long a login lasts. Earlier builds lost theirs within 30 minutes, and the
+  fix has only been tested for about an hour.
+
+Known limits:
+
+- Your phone has to be on and online with Google Messages running. If the app is swiped away or
+  Android pauses it, new messages may still arrive but chats can stop loading until you open it.
+- Only one Google Messages client seems to be active at a time, so keep the website closed while
+  using Relay.
+- Relay doesn't appear under Device pairing on the phone. Neither did the Google Messages website
+  when we checked, so unpair from inside Relay.
 
 ## Layout
 
@@ -72,9 +85,11 @@ cd app && xcodegen && open Relay.xcodeproj
 ```
 
 Run the **Relay** scheme. Google has discontinued QR code pairing, so you sign in with the Google
-account on your Android phone instead: Relay opens Chrome (where passkeys work), you copy one
-request from DevTools as cURL and paste it back into Relay, then tap the matching emoji in
-Messages on the phone.
+account on your Android phone instead. Unlock the phone and open Device pairing in Messages first,
+because it only has 20 seconds to answer. Then choose **Sign in here instead** and use your
+password and 2FA, and tap the matching emoji on the phone. If that sign-in doesn't suit your
+account, Relay can open Chrome (where passkeys work) so you can copy one request from DevTools as
+cURL and paste it back in.
 
 ## Tests
 

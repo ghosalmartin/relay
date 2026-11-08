@@ -70,8 +70,9 @@ cd app && xcodegen && open Relay.xcodeproj
 See docs/HANDOVER.md for the full session handover, known bugs and next steps.
 
 
-M1 is in progress: everything builds on macOS and all package and UI tests pass.
-Still to do: pair a real Android phone.
+M1 is in progress: everything builds on macOS, all package and UI tests pass, and it has been
+tested with a real Android phone (see README.md for what that covers).
+Still to do: confirm how long a login lasts.
 
 ## Bridge ABI
 
