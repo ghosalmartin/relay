@@ -1,10 +1,12 @@
 import Foundation
 import MessagingDomain
+import OSLog
 @preconcurrency import UserNotifications
 
 /// Shows message alerts through macOS Notification Centre and reports clicks on them.
 public final class SystemNotificationPresenter: NSObject, NotificationPresenter, UNUserNotificationCenterDelegate, Sendable {
     private static let conversationKey = "conversationID"
+    private static let log = Logger(subsystem: "dev.featurenotabug.Relay", category: "notifications")
 
     private let onOpen: @Sendable (ConversationID) -> Void
 
@@ -25,7 +27,11 @@ public final class SystemNotificationPresenter: NSObject, NotificationPresenter,
     // MARK: NotificationPresenter
 
     public func requestAuthorization() async {
-        _ = try? await center.requestAuthorization(options: [.alert, .sound])
+        do {
+            _ = try await center.requestAuthorization(options: [.alert, .sound])
+        } catch {
+            Self.log.error("Notification permission failed: \(error, privacy: .public)")
+        }
     }
 
     public func present(_ notification: MessageNotification) async {
@@ -34,7 +40,11 @@ public final class SystemNotificationPresenter: NSObject, NotificationPresenter,
             content: Self.content(for: notification),
             trigger: nil
         )
-        try? await center.add(request)
+        do {
+            try await center.add(request)
+        } catch {
+            Self.log.error("Couldn't show notification: \(error, privacy: .public)")
+        }
     }
 
     public func dismissNotifications(in conversation: ConversationID) async {
