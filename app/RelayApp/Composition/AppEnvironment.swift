@@ -18,6 +18,7 @@ final class AppEnvironment {
     private let session: LiveSession
     private let focus: ConversationFocus
     private let notifyIncomingMessages: NotifyIncomingMessages
+    private let recoverUnresponsivePhone: RecoverUnresponsivePhone
     private let scriptedSignIn: AccountCookies?
 
     /// Everything that listens to the client is built here, before `start()` can connect it,
@@ -37,6 +38,10 @@ final class AppEnvironment {
         self.windowOpener = windowOpener
         self.scriptedSignIn = scriptedSignIn
         notifyIncomingMessages = NotifyIncomingMessages(client: client, presenter: presenter, focus: focus)
+        recoverUnresponsivePhone = RecoverUnresponsivePhone(
+            connection: session.connection,
+            startSession: StartSession(client: client, store: store)
+        )
         rootViewModel = RootViewModel(
             startSession: StartSession(client: client, store: store),
             persistSessionChanges: PersistSessionChanges(client: client, store: store),
@@ -81,11 +86,13 @@ final class AppEnvironment {
         let session = session
         let notifyIncomingMessages = notifyIncomingMessages
         let rootViewModel = rootViewModel
+        let recoverUnresponsivePhone = recoverUnresponsivePhone
         Task {
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await session.run() }
                 group.addTask { await notifyIncomingMessages() }
                 group.addTask { await rootViewModel.run() }
+                group.addTask { await recoverUnresponsivePhone() }
             }
         }
     }
