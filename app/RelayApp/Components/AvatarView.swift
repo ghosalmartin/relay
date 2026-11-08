@@ -1,16 +1,18 @@
 import SwiftUI
 
-/// Initials on a colour picked from the name, so each person keeps the same colour.
+/// A contact's photo, or initials on a colour picked from the name so each person keeps the same colour.
 struct AvatarView: View {
     let initials: String
     let seed: String
+    let photo: Data?
     let size: CGFloat
 
     private static let palette: [Color] = [.blue, .green, .orange, .pink, .purple, .teal, .indigo, .brown]
 
-    init(initials: String, seed: String, size: CGFloat = 36) {
+    init(initials: String, seed: String, photo: Data? = nil, size: CGFloat = 36) {
         self.initials = initials
         self.seed = seed
+        self.photo = photo
         self.size = size
     }
 
@@ -20,6 +22,8 @@ struct AvatarView: View {
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(color.gradient, in: .circle)
+            .overlay { if let photo { AvatarPhoto(data: photo) } }     // initials stay if it can't be decoded
+            .clipShape(.circle)
             .accessibilityHidden(true)
     }
 

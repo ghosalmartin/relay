@@ -111,7 +111,8 @@ final class AppEnvironment {
         InboxViewModel(
             observeInbox: ObserveInbox(session: session),
             observeConnectionStatus: ObserveConnectionStatus(session: session),
-            focus: focus
+            focus: focus,
+            loadAvatars: LoadAvatars(client: client)
         )
     }
 

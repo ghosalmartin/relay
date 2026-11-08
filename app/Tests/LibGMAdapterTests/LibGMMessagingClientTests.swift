@@ -97,6 +97,23 @@ import Testing
         #expect(sessions.latest?.calls == ["connect"])
     }
 
+    @Test func avatarsMatchTheirPeopleAndEmptyPhotosAreLeftOut() async throws {
+        let sessions = FakeSessionFactory()
+        let client = LibGMMessagingClient(makeSession: sessions.factory)
+        try await client.connect(using: Fixtures.session)
+        try #require(sessions.latest).stubThumbnails(.with {
+            $0.thumbnail = [
+                .with { $0.identifier = "p1"; $0.data.imageBuffer = Data("photo".utf8) },
+                .with { $0.identifier = "p2" },
+            ]
+        })
+
+        let avatars = try await client.avatars(for: [ParticipantID("p1"), ParticipantID("p2")])
+
+        #expect(avatars == [ParticipantID("p1"): Data("photo".utf8)])
+        #expect(sessions.latest?.calls.last == "thumbnails:p1,p2")
+    }
+
     @Test func sendingToAnUnknownConversationFails() async throws {
         let sessions = FakeSessionFactory()
         let client = LibGMMessagingClient(makeSession: sessions.factory)

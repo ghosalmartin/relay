@@ -16,6 +16,12 @@ public enum InboxReducer: Reducer {
             state.with(pendingOpen: .some(id))
         case .searchChanged(let text):
             state.with(searchText: text)
+        case .avatarsRequested(let ids):
+            state.with(requestedAvatars: state.requestedAvatars.union(ids))
+        case .avatarsLoaded(let photos):
+            state.with(avatars: state.avatars.merging(photos) { _, new in new })
+        case .avatarsFailed(let ids):
+            state.with(requestedAvatars: state.requestedAvatars.subtracting(ids))     // the next inbox change tries again
         }
     }
 
@@ -28,7 +34,10 @@ public enum InboxReducer: Reducer {
             conversations: snapshot.conversations,
             isSyncing: snapshot.isSyncing,
             selection: .some(selection),
-            pendingOpen: .some(arrived == nil ? state.pendingOpen : nil)
+            pendingOpen: .some(arrived == nil ? state.pendingOpen : nil),
+            // An empty inbox means signed out, and the next account shouldn't see these photos.
+            avatars: snapshot.conversations.isEmpty ? [:] : state.avatars,
+            requestedAvatars: snapshot.conversations.isEmpty ? [] : state.requestedAvatars
         )
     }
 

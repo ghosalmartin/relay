@@ -10,6 +10,9 @@ public struct InboxState: Equatable, Sendable {
     /// A conversation asked for from an alert that hasn't synced yet.
     public let pendingOpen: ConversationID?
     public let searchText: String
+    public let avatars: [ParticipantID: Data]
+    /// Already asked for, including people who turned out to have no photo, so nobody is asked for twice.
+    public let requestedAvatars: Set<ParticipantID>
 
     public init(
         conversations: [Conversation] = [],
@@ -17,8 +20,12 @@ public struct InboxState: Equatable, Sendable {
         connection: ConnectionStatus = .connecting,
         selection: ConversationID? = nil,
         pendingOpen: ConversationID? = nil,
-        searchText: String = ""
+        searchText: String = "",
+        avatars: [ParticipantID: Data] = [:],
+        requestedAvatars: Set<ParticipantID> = []
     ) {
+        self.avatars = avatars
+        self.requestedAvatars = requestedAvatars
         self.conversations = conversations
         self.isSyncing = isSyncing
         self.connection = connection
@@ -34,7 +41,9 @@ public struct InboxState: Equatable, Sendable {
         connection: ConnectionStatus? = nil,
         selection: ConversationID?? = nil,
         pendingOpen: ConversationID?? = nil,
-        searchText: String? = nil
+        searchText: String? = nil,
+        avatars: [ParticipantID: Data]? = nil,
+        requestedAvatars: Set<ParticipantID>? = nil
     ) -> InboxState {
         InboxState(
             conversations: conversations ?? self.conversations,
@@ -42,13 +51,24 @@ public struct InboxState: Equatable, Sendable {
             connection: connection ?? self.connection,
             selection: selection ?? self.selection,
             pendingOpen: pendingOpen ?? self.pendingOpen,
-            searchText: searchText ?? self.searchText
+            searchText: searchText ?? self.searchText,
+            avatars: avatars ?? self.avatars,
+            requestedAvatars: requestedAvatars ?? self.requestedAvatars
         )
     }
 
     /// The rows to show: conversations matching the search, newest first.
     public var rows: [ConversationRow] {
-        conversations.filter(matchesSearch).map(ConversationRow.init)
+        conversations.filter(matchesSearch).map { conversation in
+            ConversationRow(conversation, avatar: conversation.avatarParticipant.flatMap { avatars[$0] })
+        }
+    }
+
+    /// Waits for the sync to finish, so the phone gets one request for the whole inbox
+    /// rather than one for each conversation as it streams in.
+    public var avatarsToLoad: Set<ParticipantID> {
+        guard !isSyncing else { return [] }
+        return Set(conversations.compactMap(\.avatarParticipant)).subtracting(requestedAvatars)
     }
 
     /// The banner to show above the list, if any.
@@ -77,8 +97,10 @@ public struct ConversationRow: Identifiable, Equatable, Sendable {
     public let lastActivity: Date
     public let isUnread: Bool
     public let initials: String
+    public let avatar: Data?
 
-    init(_ conversation: Conversation) {
+    init(_ conversation: Conversation, avatar: Data? = nil) {
+        self.avatar = avatar
         id = conversation.id
         title = conversation.title
         preview = Self.previewText(conversation.preview)
@@ -136,4 +158,7 @@ public enum InboxMutation: Equatable, Sendable {
     case selected(ConversationID?)
     case openRequested(ConversationID)
     case searchChanged(String)
+    case avatarsRequested(Set<ParticipantID>)
+    case avatarsLoaded([ParticipantID: Data])
+    case avatarsFailed(Set<ParticipantID>)
 }

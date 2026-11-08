@@ -167,7 +167,8 @@ import Testing
         let viewModel = InboxViewModel(
             observeInbox: ObserveInbox(session: session),
             observeConnectionStatus: ObserveConnectionStatus(session: session),
-            focus: focus
+            focus: focus,
+            loadAvatars: LoadAvatars(client: client)
         )
         return (viewModel, pump)
     }
