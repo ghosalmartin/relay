@@ -14,11 +14,14 @@ struct MessageBubbleView: View {
             if bubble.isFromMe { Spacer(minLength: 64) }
             VStack(alignment: bubble.isFromMe ? .trailing : .leading, spacing: 3) {
                 if let sender = bubble.senderName {
-                    Text(sender).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    Text(sender)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, Self.textInset)
                 }
                 content
-                reactions
-                footer
+                reactions.padding(.horizontal, Self.textInset)
+                footer.padding(.horizontal, Self.textInset)
             }
             if !bubble.isFromMe { Spacer(minLength: 64) }
         }
@@ -27,24 +30,29 @@ struct MessageBubbleView: View {
         .accessibilityIdentifier("message.\(bubble.id.rawValue)")
     }
 
+    // Padding is per block rather than around the bubble, so pictures can reach its edges.
     private var content: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let reply = bubble.replyPreview {
-                Label(reply, systemImage: "arrowshape.turn.up.left")
-                    .font(.caption)
-                    .lineLimit(2)
-                    .opacity(0.75)
-            }
-            if let placeholder = bubble.placeholder {
-                Text(placeholder).italic().opacity(0.75)
-            } else {
-                messageBody
+        WidthCap(limit: bubble.hasPicture ? PictureLayout.maxWidth : nil) {
+            VStack(alignment: .leading, spacing: 2) {
+                if let reply = bubble.replyPreview {
+                    Label(reply, systemImage: "arrowshape.turn.up.left")
+                        .font(.caption)
+                        .lineLimit(2)
+                        .opacity(0.75)
+                        .padding(.horizontal, Self.textInset)
+                        .padding(.top, Self.lineInset)
+                        .padding(.bottom, bubble.attachments.isEmpty ? 0 : Self.lineInset)
+                }
+                if let placeholder = bubble.placeholder {
+                    Text(placeholder).italic().opacity(0.75).modifier(TextBlockInset())
+                } else {
+                    messageBody
+                }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
         .foregroundStyle(bubble.isFromMe ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
-        .background(bubbleFill, in: .rect(cornerRadius: 16))
+        .background(bubbleFill)
+        .clipShape(.rect(cornerRadius: 16))
     }
 
     @ViewBuilder
@@ -56,11 +64,14 @@ struct MessageBubbleView: View {
                 onAppear: { onAttachmentAppear(attachment) },
                 onTap: { onAttachmentTap(attachment) }
             )
+            .padding(.horizontal, attachment.fillsBubble(showing: attachments[attachment.id]) ? 0 : Self.textInset)
+            .padding(.vertical, attachment.fillsBubble(showing: attachments[attachment.id]) ? 0 : Self.lineInset)
         }
         if !bubble.text.isEmpty {
             Text(bubble.linkedText)
                 .textSelection(.enabled)
                 .tint(bubble.isFromMe ? .white : .accentColor)     // the accent colour would vanish on my bubbles
+                .modifier(TextBlockInset())
         }
     }
 
@@ -98,4 +109,7 @@ struct MessageBubbleView: View {
     private var bubbleFill: AnyShapeStyle {
         bubble.isFromMe ? AnyShapeStyle(.tint) : AnyShapeStyle(.fill.tertiary)
     }
+
+    static let textInset: CGFloat = 12
+    static let lineInset: CGFloat = 7
 }

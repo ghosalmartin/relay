@@ -10,11 +10,10 @@ struct LoadedPicture: View {
     var body: some View {
         Group {
             if let image {
+                let size = PictureLayout.size(fitting: image.size)
                 Image(nsImage: image)
                     .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 280, maxHeight: 320)
-                    .clipShape(.rect(cornerRadius: 10))
+                    .frame(width: size.width, height: size.height)
             } else {
                 ProgressView().frame(width: 200, height: 140)
             }

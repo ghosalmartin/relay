@@ -34,6 +34,7 @@ public struct MessageBubble: Identifiable, Equatable, Sendable {
     public let placeholder: String?
 
     public var linkedText: AttributedString { LinkedText.attributed(text) }
+    public var hasPicture: Bool { attachments.contains(where: \.isImage) }
 }
 
 /// Turns a flat message list into day separators and grouped bubbles.
