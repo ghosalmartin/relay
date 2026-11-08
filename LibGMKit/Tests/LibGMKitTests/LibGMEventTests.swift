@@ -5,8 +5,7 @@ import Testing
 
 @Suite struct LibGMEventTests {
     @Test func decodesProtobufPayloads() throws {
-        var conversation = GM.Conversation()
-        conversation.conversationID = "c1"
+        let conversation = GM.Conversation.with { $0.conversationID = "c1" }
 
         let event = LibGMEvent(kind: BridgeEventKind.conversation.rawValue, payload: try conversation.serializedBytes())
 
@@ -14,8 +13,7 @@ import Testing
     }
 
     @Test func historicalMessagesAreFlagged() throws {
-        var message = GM.Message()
-        message.messageID = "m1"
+        let message = GM.Message.with { $0.messageID = "m1" }
         let bytes: Data = try message.serializedBytes()
 
         #expect(LibGMEvent(kind: BridgeEventKind.message.rawValue, payload: bytes) == .message(message, isHistorical: false))

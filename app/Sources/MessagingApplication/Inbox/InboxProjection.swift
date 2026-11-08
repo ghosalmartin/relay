@@ -2,36 +2,37 @@ import MessagingDomain
 
 /// Folds client events into the current inbox. Pure value type: no I/O, no time.
 public struct InboxProjection: Equatable, Sendable {
-    private var conversationsByID: [ConversationID: Conversation] = [:]
-    public private(set) var hasCompletedInitialSync = false
+    private let conversationsByID: [ConversationID: Conversation]
+    public let hasCompletedInitialSync: Bool
 
-    public init() {}
+    public init() {
+        self.init(conversationsByID: [:], hasCompletedInitialSync: false)
+    }
+
+    private init(conversationsByID: [ConversationID: Conversation], hasCompletedInitialSync: Bool) {
+        self.conversationsByID = conversationsByID
+        self.hasCompletedInitialSync = hasCompletedInitialSync
+    }
 
     /// Newest activity first, the order the inbox shows.
     public var conversations: [Conversation] {
         conversationsByID.values.sorted { $0.lastActivity > $1.lastActivity }
     }
 
-    /// Applies one event. Returns true when the inbox changed.
-    public mutating func apply(_ event: MessagingEvent) -> Bool {
+    /// The inbox after `event`. Equal to this one if the event changed nothing.
+    public func applying(_ event: MessagingEvent) -> InboxProjection {
         switch event {
         case .conversationUpdated(let conversation):
-            return upsert(conversation)
+            InboxProjection(
+                conversationsByID: conversationsByID.merging([conversation.id: conversation]) { _, updated in updated },
+                hasCompletedInitialSync: hasCompletedInitialSync
+            )
         case .initialSyncCompleted:
-            guard !hasCompletedInitialSync else { return false }
-            hasCompletedInitialSync = true
-            return true
-        case .loggedOut:
-            self = InboxProjection()
-            return true
+            InboxProjection(conversationsByID: conversationsByID, hasCompletedInitialSync: true)
+        case .loggedOut, .paired:   // a new pairing may be a different phone
+            InboxProjection()
         default:
-            return false
+            self
         }
-    }
-
-    private mutating func upsert(_ conversation: Conversation) -> Bool {
-        guard conversationsByID[conversation.id] != conversation else { return false }
-        conversationsByID[conversation.id] = conversation
-        return true
     }
 }

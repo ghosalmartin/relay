@@ -7,7 +7,6 @@ public final class PairingViewModel {
 
     private let pairDevice: PairDevice
     private let onPaired: @MainActor () -> Void
-    private var attempt = 0
 
     /// - Parameter onPaired: called once the phone accepts this device.
     public init(pairDevice: PairDevice, onPaired: @escaping @MainActor () -> Void) {
@@ -31,11 +30,11 @@ public final class PairingViewModel {
     }
 
     /// Changes whenever pairing should start over; drive the view's `.task(id:)` with it.
-    public var runID: Int { attempt }
+    public var runID: Int { state.attempt }
 
     public func send(_ intent: PairingIntent) {
         switch intent {
-        case .retryTapped: attempt += 1
+        case .retryTapped: apply(.retryRequested)
         }
     }
 

@@ -62,14 +62,15 @@ import Testing
         let sessions = FakeSessionFactory()
         let client = LibGMMessagingClient(makeSession: sessions.factory)
         try await client.connect(using: Fixtures.session)
-        var response = GM.ListMessagesResponse()
-        response.messages = [
-            ProtoFixtures.message("new", micros: 2_000_000),
-            ProtoFixtures.message("notice", status: .tombstoneParticipantJoined),
-            ProtoFixtures.message("old", micros: 1_000_000),
-        ]
-        response.cursor.lastItemID = "old"
-        response.cursor.lastItemTimestamp = 1_000_000
+        let response = GM.ListMessagesResponse.with {
+            $0.messages = [
+                ProtoFixtures.message("new", micros: 2_000_000),
+                ProtoFixtures.message("notice", status: .tombstoneParticipantJoined),
+                ProtoFixtures.message("old", micros: 1_000_000),
+            ]
+            $0.cursor.lastItemID = "old"
+            $0.cursor.lastItemTimestamp = 1_000_000
+        }
         try #require(sessions.latest).stubPage(response)
 
         let page = try await client.messages(in: ConversationID("c1"), before: nil, limit: 30)
@@ -77,6 +78,17 @@ import Testing
         #expect(page.messages.map(\.id.rawValue) == ["old", "new"])
         #expect(page.olderCursor != nil)
         #expect(sessions.latest?.calls.last == "fetch:c1:30:-")
+    }
+
+    @Test func unpairingTellsSubscribersTheSessionIsOver() async throws {
+        let sessions = FakeSessionFactory()
+        let client = LibGMMessagingClient(makeSession: sessions.factory)
+        try await client.connect(using: Fixtures.session)
+        let events = client.events()
+
+        try await client.unpair()
+
+        #expect(await events.first(1) == [.loggedOut])
     }
 
     @Test func unpairingEndsTheSession() async throws {

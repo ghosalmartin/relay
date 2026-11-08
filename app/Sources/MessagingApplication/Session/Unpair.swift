@@ -10,8 +10,16 @@ public struct Unpair: Sendable {
         self.store = store
     }
 
+    /// Forgets the session even if the phone can't be told, then reports that failure.
     public func callAsFunction() async throws {
-        try await client.unpair()
+        let phoneOutcome: Result<Void, any Error>
+        do {
+            try await client.unpair()
+            phoneOutcome = .success(())
+        } catch {
+            phoneOutcome = .failure(error)
+        }
         try await store.clear()
+        try phoneOutcome.get()
     }
 }

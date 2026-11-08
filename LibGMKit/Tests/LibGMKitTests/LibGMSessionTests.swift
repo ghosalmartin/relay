@@ -13,17 +13,17 @@ import Testing
         bridge.emit(kind: BridgeEventKind.loggedOut.rawValue)
         session.close()
 
-        var events: [LibGMEvent] = []
-        for await event in session.events { events.append(event) }
+        let events = await session.events.reduce([LibGMEvent]()) { $0 + [$1] }
         #expect(events == [.qrCode("qr"), .loggedOut])
     }
 
     @Test func fetchMessagesSendsCursorFields() async throws {
         let bridge = FakeNativeBridge()
         let session = LibGMSession(bridge: bridge)
-        var cursor = GM.Cursor()
-        cursor.lastItemID = "m9"
-        cursor.lastItemTimestamp = 42
+        let cursor = GM.Cursor.with {
+            $0.lastItemID = "m9"
+            $0.lastItemTimestamp = 42
+        }
 
         _ = try await session.fetchMessages(conversationID: "c1", count: 30, before: cursor)
 
@@ -35,8 +35,7 @@ import Testing
 
     @Test func decodesProtobufResponses() async throws {
         let bridge = FakeNativeBridge()
-        var expected = GM.Conversation()
-        expected.name = "Sam"
+        let expected = GM.Conversation.with { $0.name = "Sam" }
         bridge.respond(to: .getConversation, with: .success(try expected.serializedBytes()))
 
         let conversation = try await LibGMSession(bridge: bridge).conversation(id: "c1")

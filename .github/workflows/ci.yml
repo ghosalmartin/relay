@@ -2,10 +2,8 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  linux:
-    # Everything except SwiftUI and the Keychain runs here, including the real Go bridge.
-    runs-on: ubuntu-24.04
-    container: swift:6.2-noble
+  macos:
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -13,24 +11,12 @@ jobs:
       - name: Go bridge tests
         working-directory: LibGMKit/Bridge
         run: go vet ./... && go test -race ./...
-      - name: Build bridge for Linux
-        run: LibGMKit/Bridge/build-linux.sh
+      - name: Build bridge xcframework
+        run: LibGMKit/Bridge/build-xcframework.sh
       - name: LibGMKit tests
         working-directory: LibGMKit
         run: swift test
       - name: App package tests
-        working-directory: app
-        run: swift test
-
-  macos:
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with: { go-version-file: LibGMKit/Bridge/go.mod }
-      - name: Build bridge xcframework
-        run: LibGMKit/Bridge/build-xcframework.sh
-      - name: Package tests (incl. Keychain)
         working-directory: app
         run: swift test
       - name: UI tests

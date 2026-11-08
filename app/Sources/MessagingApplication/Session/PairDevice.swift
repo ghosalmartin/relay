@@ -52,7 +52,8 @@ public struct PairDevice: Sendable {
     private func refreshCodes() async throws {
         while true {
             try await clock.sleep(for: Self.codeLifetime)
-            try await client.refreshPairingCode()
+            // A failed refresh mustn't end the loop; the code on screen is only good for a few more seconds.
+            try? await client.refreshPairingCode()
         }
     }
 

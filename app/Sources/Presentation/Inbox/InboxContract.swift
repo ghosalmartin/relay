@@ -3,13 +3,48 @@ import MessagingApplication
 import MessagingDomain
 
 public struct InboxState: Equatable, Sendable {
-    public var conversations: [Conversation] = []
-    public var isSyncing = true
-    public var connection: ConnectionStatus = .connecting
-    public var selection: ConversationID?
-    public var searchText = ""
+    public let conversations: [Conversation]
+    public let isSyncing: Bool
+    public let connection: ConnectionStatus
+    public let selection: ConversationID?
+    /// A conversation asked for from an alert that hasn't synced yet.
+    public let pendingOpen: ConversationID?
+    public let searchText: String
 
-    public init() {}
+    public init(
+        conversations: [Conversation] = [],
+        isSyncing: Bool = true,
+        connection: ConnectionStatus = .connecting,
+        selection: ConversationID? = nil,
+        pendingOpen: ConversationID? = nil,
+        searchText: String = ""
+    ) {
+        self.conversations = conversations
+        self.isSyncing = isSyncing
+        self.connection = connection
+        self.selection = selection
+        self.pendingOpen = pendingOpen
+        self.searchText = searchText
+    }
+
+    /// A copy with the given fields replaced. For an optional field, `.some(nil)` clears it and omitting it keeps it.
+    func with(
+        conversations: [Conversation]? = nil,
+        isSyncing: Bool? = nil,
+        connection: ConnectionStatus? = nil,
+        selection: ConversationID?? = nil,
+        pendingOpen: ConversationID?? = nil,
+        searchText: String? = nil
+    ) -> InboxState {
+        InboxState(
+            conversations: conversations ?? self.conversations,
+            isSyncing: isSyncing ?? self.isSyncing,
+            connection: connection ?? self.connection,
+            selection: selection ?? self.selection,
+            pendingOpen: pendingOpen ?? self.pendingOpen,
+            searchText: searchText ?? self.searchText
+        )
+    }
 
     /// The rows to show: conversations matching the search, newest first.
     public var rows: [ConversationRow] {
@@ -99,5 +134,6 @@ public enum InboxMutation: Equatable, Sendable {
     case inboxChanged(InboxSnapshot)
     case connectionChanged(ConnectionStatus)
     case selected(ConversationID?)
+    case openRequested(ConversationID)
     case searchChanged(String)
 }

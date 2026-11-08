@@ -8,12 +8,12 @@
 //   LibGMAdapter           the only code that knows libgm exists. Implements MessagingClient
 //                          on top of LibGMKit (../LibGMKit, a standalone package).
 //   KeychainAdapter        implements SessionStore.
+//   UserNotificationsAdapter  implements NotificationPresenter.
 //
 // The app target (see project.yml) holds the SwiftUI views and the composition root.
 import PackageDescription
 
-// Everything except the Keychain builds and tests on Linux as well as macOS.
-var targets: [Target] = [
+let targets: [Target] = [
     .target(name: "AsyncBroadcast"),
     .target(name: "MessagingDomain"),
     .target(name: "MessagingApplication", dependencies: ["MessagingDomain"]),
@@ -25,23 +25,20 @@ var targets: [Target] = [
     .testTarget(name: "MessagingApplicationTests", dependencies: ["MessagingApplication", "MessagingTestSupport"]),
     .testTarget(name: "PresentationTests", dependencies: ["Presentation", "MessagingApplication", "MessagingTestSupport"]),
     .testTarget(name: "LibGMAdapterTests", dependencies: ["LibGMAdapter", "LibGMKit", "MessagingTestSupport"]),
+    .target(name: "KeychainAdapter", dependencies: ["MessagingDomain"]),
+    .testTarget(name: "KeychainAdapterTests", dependencies: ["KeychainAdapter", "MessagingDomain"]),
+    .target(name: "UserNotificationsAdapter", dependencies: ["MessagingDomain"]),
+    .testTarget(name: "UserNotificationsAdapterTests", dependencies: ["UserNotificationsAdapter", "MessagingDomain"]),
 ]
-var products: [Product] = [
+let products: [Product] = [
     .library(name: "MessagingDomain", targets: ["MessagingDomain"]),
     .library(name: "MessagingApplication", targets: ["MessagingApplication"]),
     .library(name: "Presentation", targets: ["Presentation"]),
     .library(name: "LibGMAdapter", targets: ["LibGMAdapter"]),
     .library(name: "MessagingTestSupport", targets: ["MessagingTestSupport"]),
+    .library(name: "KeychainAdapter", targets: ["KeychainAdapter"]),
+    .library(name: "UserNotificationsAdapter", targets: ["UserNotificationsAdapter"]),
 ]
-
-// The Keychain is Apple-only.
-#if canImport(Security)
-targets += [
-    .target(name: "KeychainAdapter", dependencies: ["MessagingDomain"]),
-    .testTarget(name: "KeychainAdapterTests", dependencies: ["KeychainAdapter", "MessagingDomain"]),
-]
-products.append(.library(name: "KeychainAdapter", targets: ["KeychainAdapter"]))
-#endif
 
 let package = Package(
     name: "Relay",

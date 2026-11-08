@@ -60,9 +60,6 @@ cd app && swift test                                # domain, use cases, view mo
 xcodebuild test -project app/Relay.xcodeproj -scheme Relay   # UI flows (macOS)
 ```
 
-Everything except SwiftUI and the Keychain also builds and tests on Linux
-(`./LibGMKit/Bridge/build-linux.sh` first), which is what CI's Linux job does.
-
 ## Updating libgm
 
 ```sh

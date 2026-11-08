@@ -10,6 +10,8 @@ import MessagingTestSupport
 /// with two conversations. Sending echoes the message back as delivered.
 enum UITestLaunch {
     static let argument = "--ui-testing"
+    /// Leaves the QR code on screen instead of pairing, so a test can look at it without racing the script.
+    static let holdPairingArgument = "--ui-testing-hold-pairing"
 
     static func makeClient() -> FakeMessagingClient {
         let client = FakeMessagingClient()
@@ -25,7 +27,7 @@ enum UITestLaunch {
             ), isHistorical: false))
         }
         client.onStartPairing = { [weak client] in
-            guard let client else { return }
+            guard let client, !ProcessInfo.processInfo.arguments.contains(holdPairingArgument) else { return }
             Task {
                 try? await Task.sleep(for: .seconds(1))
                 client.emit(.sessionChanged(SessionData(bytes: Data("ui-test".utf8))))
@@ -36,6 +38,11 @@ enum UITestLaunch {
             }
         }
         return client
+    }
+
+    /// A fake, so the permission prompt can't appear over the window under test.
+    static func makePresenter() -> FakeNotificationPresenter {
+        FakeNotificationPresenter()
     }
 
     static func makeStore() -> InMemorySessionStore {

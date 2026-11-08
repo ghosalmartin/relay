@@ -17,15 +17,15 @@ import Testing
     @Test func showsTheCodeThenReportsPairing() async {
         let client = FakeMessagingClient()
         client.stubEventsOnStartPairing([.pairingCode("qr-1"), .paired])
-        var pairedCount = 0
+        let pairedCount = LiveValue(0)
         let viewModel = PairingViewModel(pairDevice: PairDevice(client: client, clock: ManualClock())) {
-            pairedCount += 1
+            pairedCount.update { $0 + 1 }
         }
 
         await viewModel.run()
 
         #expect(viewModel.state.step == .paired)
-        #expect(pairedCount == 1)
+        #expect(pairedCount.value == 1)
     }
 
     @Test func retryChangesTheRunID() {

@@ -2,13 +2,14 @@ import SwiftUI
 
 @main
 struct RelayApp: App {
-    @State private var environment = AppEnvironment.forCurrentLaunch()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup("Messages") {
-            RootView(environment: environment)
+        WindowGroup("Messages", id: MainWindowOpener.windowID) {
+            RootView(environment: appDelegate.environment)
                 .frame(minWidth: 720, minHeight: 480)
         }
         .windowToolbarStyle(.unified)
+        .commands { AppCommands(windowOpener: appDelegate.environment.windowOpener) }
     }
 }

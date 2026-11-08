@@ -3,3 +3,4 @@ app/Relay.xcodeproj/
 xcuserdata/
 .build/
 LibGMKit/Bridge/build/
+app/RelayApp/Relay.entitlements

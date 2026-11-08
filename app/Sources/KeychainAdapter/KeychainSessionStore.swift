@@ -17,10 +17,11 @@ public struct KeychainSessionStore: SessionStore {
     }
 
     public func load() async throws -> SessionData? {
-        var query = baseQuery
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var result: AnyObject?
+        let query = baseQuery.merging([
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]) { _, added in added }
+        var result: AnyObject?      // SecItemCopyMatching writes through this pointer
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         switch status {
         case errSecSuccess: return (result as? Data).map(SessionData.init)
@@ -47,9 +48,10 @@ public struct KeychainSessionStore: SessionStore {
     }
 
     private func add(_ session: SessionData) throws {
-        var item = baseQuery
-        item[kSecValueData as String] = session.bytes
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        let item = baseQuery.merging([
+            kSecValueData as String: session.bytes,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+        ]) { _, added in added }
         let status = SecItemAdd(item as CFDictionary, nil)
         guard status == errSecSuccess else { throw Failure(status: status) }
     }

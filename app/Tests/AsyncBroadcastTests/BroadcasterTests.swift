@@ -46,8 +46,6 @@ import Testing
     }
 
     private func collect(_ stream: AsyncStream<Int>) async -> [Int] {
-        var values: [Int] = []
-        for await value in stream { values.append(value) }
-        return values
+        await stream.reduce([]) { $0 + [$1] }
     }
 }

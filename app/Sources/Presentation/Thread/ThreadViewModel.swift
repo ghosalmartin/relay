@@ -10,19 +10,22 @@ public final class ThreadViewModel {
     private let observeThread: ObserveThread
     private let sendText: SendText
     private let markRead: MarkConversationRead
+    private let focus: ConversationFocus
 
     public init(
         conversation: Conversation,
         loadHistory: LoadThreadHistory,
         observeThread: ObserveThread,
         sendText: SendText,
-        markRead: MarkConversationRead
+        markRead: MarkConversationRead,
+        focus: ConversationFocus
     ) {
         self.state = ThreadState(conversation: conversation)
         self.loadHistory = loadHistory
         self.observeThread = observeThread
         self.sendText = sendText
         self.markRead = markRead
+        self.focus = focus
     }
 
     private var conversationID: ConversationID { state.conversation.id }
@@ -32,9 +35,23 @@ public final class ThreadViewModel {
     public func run() async {
         let live = observeThread(conversationID)   // subscribe first so nothing slips between load and follow
         await loadLatest()
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await self.followMessages(live) }
+            group.addTask { await self.markReadWhenViewed() }
+        }
+    }
+
+    private func followMessages(_ live: AsyncStream<Message>) async {
         for await message in live {
             apply(.messageArrived(message))
             if !message.isFromMe { await markLatestRead() }
+        }
+    }
+
+    /// Catches up on anything that arrived while the user was in another app.
+    private func markReadWhenViewed() async {
+        for await attention in focus.attention.values() where attention.visibleConversation == conversationID {
+            await markLatestRead()
         }
     }
 
@@ -45,6 +62,8 @@ public final class ThreadViewModel {
             apply(.draftChanged(text))
         case .sendErrorDismissed:
             apply(.sendErrorDismissed)
+        case .conversationChanged(let conversation):
+            apply(.conversationChanged(conversation))
         case .sendTapped:
             return Task { await sendDraft() }
         case .loadOlderTapped:
@@ -77,17 +96,19 @@ public final class ThreadViewModel {
 
     private func sendDraft() async {
         guard state.canSend else { return }
+        let text = state.draft
         apply(.sending)
         do {
-            try await sendText(state.draft, to: conversationID)
-            apply(.sent)
+            try await sendText(text, to: conversationID)
+            apply(.sent(text))
         } catch {
             apply(.sendFailed(Self.describe(error)))
         }
     }
 
     private func markLatestRead() async {
-        guard let latest = state.newestIncomingMessage else { return }
+        // Read receipts tell the sender you've seen it, so only send them when that's true.
+        guard focus.isVisible(conversationID), let latest = state.newestIncomingMessage else { return }
         try? await markRead(conversationID, upTo: latest.id)   // best effort; the next message retries
     }
 

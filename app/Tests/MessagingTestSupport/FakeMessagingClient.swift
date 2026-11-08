@@ -15,6 +15,8 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     private struct Stubs {
         var connectError: MessagingError?
         var sendError: MessagingError?
+        var unpairError: MessagingError?
+        var refreshError: MessagingError?
         var page = MessagePage(messages: [], olderCursor: nil)
         var eventsOnStartPairing: [MessagingEvent] = []
         var onStartPairing: (@Sendable () -> Void)?
@@ -35,6 +37,8 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
 
     public func stubConnect(throwing error: MessagingError) { stubs.withLock { $0.connectError = error } }
     public func stubSend(throwing error: MessagingError) { stubs.withLock { $0.sendError = error } }
+    public func stubUnpair(throwing error: MessagingError) { stubs.withLock { $0.unpairError = error } }
+    public func stubRefresh(throwing error: MessagingError?) { stubs.withLock { $0.refreshError = error } }
     public func stubPage(_ page: MessagePage) { stubs.withLock { $0.page = page } }
     public func stubEventsOnStartPairing(_ events: [MessagingEvent]) { stubs.withLock { $0.eventsOnStartPairing = events } }
 
@@ -60,7 +64,10 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
         onStartPairing?()
     }
 
-    public func refreshPairingCode() async throws(MessagingError) { record(.refreshPairingCode) }
+    public func refreshPairingCode() async throws(MessagingError) {
+        record(.refreshPairingCode)
+        if let error = stubs.withLock({ $0.refreshError }) { throw error }
+    }
 
     public func connect(using session: SessionData) async throws(MessagingError) {
         record(.connect(session))
@@ -68,7 +75,11 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     }
 
     public func disconnect() async { record(.disconnect) }
-    public func unpair() async throws(MessagingError) { record(.unpair) }
+    public func unpair() async throws(MessagingError) {
+        record(.unpair)
+        emit(.loggedOut)
+        if let error = stubs.withLock({ $0.unpairError }) { throw error }
+    }
 
     public func messages(in conversation: ConversationID, before cursor: HistoryCursor?, limit: Int) async throws(MessagingError) -> MessagePage {
         record(.messages(conversation, cursor, limit: limit))

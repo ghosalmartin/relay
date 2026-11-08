@@ -1,9 +1,16 @@
+import MessagingDomain
 import Presentation
 import SwiftUI
 
 /// One conversation: history, live messages and the composer.
 struct ThreadView: View {
-    @State var viewModel: ThreadViewModel
+    let conversation: Conversation
+    @State private var viewModel: ThreadViewModel
+
+    init(environment: AppEnvironment, conversation: Conversation) {
+        self.conversation = conversation
+        _viewModel = State(initialValue: environment.makeThreadViewModel(for: conversation))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,6 +24,7 @@ struct ThreadView: View {
         }
         .navigationTitle(viewModel.state.title)
         .task { await viewModel.run() }
+        .onChange(of: conversation) { _, updated in viewModel.send(.conversationChanged(updated)) }
         .alert(
             "Message not sent",
             isPresented: Binding(get: { viewModel.state.sendError != nil }, set: { if !$0 { viewModel.send(.sendErrorDismissed) } }),

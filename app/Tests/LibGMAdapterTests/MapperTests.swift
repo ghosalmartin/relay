@@ -6,11 +6,13 @@ import Testing
 
 @Suite struct ConversationMapperTests {
     @Test func mapsTheInboxFields() {
-        var proto = ProtoFixtures.conversation("c1", name: "Family")
-        proto.unread = true
-        proto.isGroupChat = true
-        proto.latestMessage.displayContent = "dinner?"
-        proto.latestMessage.displayName = "Mum"
+        let proto = GM.Conversation.with {
+            $0 = ProtoFixtures.conversation("c1", name: "Family")
+            $0.unread = true
+            $0.isGroupChat = true
+            $0.latestMessage.displayContent = "dinner?"
+            $0.latestMessage.displayName = "Mum"
+        }
 
         let conversation = ConversationMapper.conversation(from: proto)
 
@@ -22,9 +24,10 @@ import Testing
     }
 
     @Test func participantNameFallsBackToTheNumber() {
-        var proto = GM.Participant()
-        proto.id.participantID = "p1"
-        proto.formattedNumber = "07700 900123"
+        let proto = GM.Participant.with {
+            $0.id.participantID = "p1"
+            $0.formattedNumber = "07700 900123"
+        }
 
         let participant = ConversationMapper.participant(from: proto)
 
@@ -63,11 +66,12 @@ import Testing
     }
 
     @Test func mediaBecomesAnAttachment() {
-        var info = GM.MessageInfo()
-        info.mediaContent.mediaID = "media-1"
-        info.mediaContent.mediaName = "photo.jpg"
-        info.mediaContent.mimeType = "image/jpeg"
-        info.mediaContent.size = 2048
+        let info = GM.MessageInfo.with {
+            $0.mediaContent.mediaID = "media-1"
+            $0.mediaContent.mediaName = "photo.jpg"
+            $0.mediaContent.mimeType = "image/jpeg"
+            $0.mediaContent.size = 2048
+        }
 
         let part = MessageMapper.part(from: info)
 
@@ -77,9 +81,10 @@ import Testing
 
 @Suite struct CursorCodecTests {
     @Test func roundTrips() throws {
-        var cursor = GM.Cursor()
-        cursor.lastItemID = "m|9"     // separator inside the ID survives
-        cursor.lastItemTimestamp = 42
+        let cursor = GM.Cursor.with {
+            $0.lastItemID = "m|9"     // separator inside the ID survives
+            $0.lastItemTimestamp = 42
+        }
 
         let token = try #require(CursorCodec.token(from: cursor))
         let decoded = try #require(CursorCodec.cursor(from: token))
@@ -95,8 +100,10 @@ import Testing
 
 @Suite struct SendRequestBuilderTests {
     @Test func sendsFromTheConversationsNumberAndSIM() {
-        var conversation = ProtoFixtures.conversation("c1", outgoingID: "me-2")
-        conversation.simCard.simdata.simpayload.simnumber = 2
+        let conversation = GM.Conversation.with {
+            $0 = ProtoFixtures.conversation("c1", outgoingID: "me-2")
+            $0.simCard.simdata.simpayload.simnumber = 2
+        }
 
         let request = SendRequestBuilder.textMessage("hello", in: conversation, transactionID: "tx")
 

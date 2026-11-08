@@ -16,6 +16,10 @@ private func at(_ minutes: Double, day: Double = 0) -> Date {
 }
 
 @Suite struct ThreadReducerTests {
+    private func state(after mutations: ThreadMutation...) -> ThreadState {
+        mutations.reduce(ThreadState(conversation: Fixtures.conversation("c1")), ThreadReducer.reduce)
+    }
+
     @Test func mergeReplacesByIDAndKeepsSendOrder() {
         let first = Fixtures.message("a", sentAt: at(1), status: .sending)
         let second = Fixtures.message("b", sentAt: at(2))
@@ -28,44 +32,50 @@ private func at(_ minutes: Double, day: Double = 0) -> Date {
     }
 
     @Test func successfulSendClearsTheDraft() {
-        var state = ThreadState(conversation: Fixtures.conversation("c1"))
-        state = ThreadReducer.reduce(state, .draftChanged("hi"))
-        state = ThreadReducer.reduce(state, .sending)
-        #expect(state.isSending && !state.canSend)
+        let sending = state(after: .draftChanged("hi"), .sending)
+        #expect(sending.isSending && !sending.canSend)
 
-        state = ThreadReducer.reduce(state, .sent)
-        #expect(state.draft == "" && !state.isSending)
+        let sent = ThreadReducer.reduce(sending, .sent("hi"))
+        #expect(sent.draft == "" && !sent.isSending)
+    }
+
+    @Test func textTypedWhileSendingIsKept() {
+        let sent = state(after: .draftChanged("hi"), .sending, .draftChanged("hi there"), .sent("hi"))
+
+        #expect(sent.draft == "hi there" && !sent.isSending)
+    }
+
+    @Test func aRenamedConversationUpdatesTheTitle() {
+        let state = ThreadReducer.reduce(
+            ThreadState(conversation: Fixtures.conversation("c1", title: "Old")),
+            .conversationChanged(Fixtures.conversation("c1", title: "New"))
+        )
+
+        #expect(state.title == "New")
     }
 
     @Test func failedSendKeepsTheDraftAndShowsWhy() {
-        var state = ThreadState(conversation: Fixtures.conversation("c1"))
-        state = ThreadReducer.reduce(state, .draftChanged("hi"))
-        state = ThreadReducer.reduce(state, .sending)
+        let failed = state(after: .draftChanged("hi"), .sending, .sendFailed("offline"))
 
-        state = ThreadReducer.reduce(state, .sendFailed("offline"))
-
-        #expect(state.draft == "hi")
-        #expect(state.sendError == "offline")
-        #expect(state.canSend)
+        #expect(failed.draft == "hi")
+        #expect(failed.sendError == "offline")
+        #expect(failed.canSend)
     }
 
     @Test(arguments: ["", "   ", "\n"])
     func blankDraftCannotBeSent(draft: String) {
-        var state = ThreadState(conversation: Fixtures.conversation("c1"))
-        state.draft = draft
-        #expect(state.canSend == false)
+        #expect(ThreadState(conversation: Fixtures.conversation("c1"), draft: draft).canSend == false)
     }
 
     @Test func olderHistoryOnlyWhileThereIsACursor() {
-        var state = ThreadState(conversation: Fixtures.conversation("c1"))
-        state = ThreadReducer.reduce(state, .historyLoaded(MessagePage(messages: [], olderCursor: HistoryCursor(token: "t"))))
-        #expect(state.canLoadOlder)
+        let loaded = state(after: .historyLoaded(MessagePage(messages: [], olderCursor: HistoryCursor(token: "t"))))
+        #expect(loaded.canLoadOlder)
 
-        state = ThreadReducer.reduce(state, .olderLoading)
-        #expect(state.canLoadOlder == false)
+        let loading = ThreadReducer.reduce(loaded, .olderLoading)
+        #expect(loading.canLoadOlder == false)
 
-        state = ThreadReducer.reduce(state, .olderLoaded(MessagePage(messages: [], olderCursor: nil)))
-        #expect(state.canLoadOlder == false)
+        let finished = ThreadReducer.reduce(loading, .olderLoaded(MessagePage(messages: [], olderCursor: nil)))
+        #expect(finished.canLoadOlder == false)
     }
 }
 
@@ -178,13 +188,39 @@ private func at(_ minutes: Double, day: Double = 0) -> Date {
         #expect(viewModel.state.draft == "hi")
     }
 
-    private func makeViewModel(_ client: FakeMessagingClient) -> ThreadViewModel {
+    @Test func aThreadBehindAnotherAppWaitsToSendItsReadReceipt() async {
+        let client = FakeMessagingClient()
+        client.stubPage(MessagePage(messages: [Fixtures.message("m1")], olderCursor: nil))
+        let focus = ConversationFocus()
+        focus.select(ConversationID("c1"))
+        let viewModel = makeViewModel(client, focus: focus)
+        let running = Task { await viewModel.run() }
+        let receipt = FakeMessagingClient.Call.markRead(ConversationID("c1"), MessageID("m1"))
+
+        #expect(await eventually { viewModel.state.messages.count == 1 })
+        #expect(!client.calls.contains(receipt))
+
+        focus.setAppActive(true)
+
+        #expect(await eventually { client.calls.contains(receipt) })
+        running.cancel()
+    }
+
+    private func visibleFocus() -> ConversationFocus {
+        let focus = ConversationFocus()
+        focus.select(ConversationID("c1"))
+        focus.setAppActive(true)
+        return focus
+    }
+
+    private func makeViewModel(_ client: FakeMessagingClient, focus: ConversationFocus? = nil) -> ThreadViewModel {
         ThreadViewModel(
             conversation: Fixtures.conversation("c1"),
             loadHistory: LoadThreadHistory(client: client),
             observeThread: ObserveThread(client: client),
             sendText: SendText(client: client),
-            markRead: MarkConversationRead(client: client)
+            markRead: MarkConversationRead(client: client),
+            focus: focus ?? visibleFocus()
         )
     }
 }

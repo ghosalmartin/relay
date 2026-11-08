@@ -68,10 +68,7 @@ import Testing
         let client = FakeMessagingClient()
         client.stubEventsOnStartPairing([.pairingCode("code-1"), .sessionChanged(Fixtures.session), .pairingCode("code-2"), .paired])
 
-        var steps: [PairingStep] = []
-        for try await step in PairDevice(client: client)() {
-            steps.append(step)
-        }
+        let steps = try await PairDevice(client: client)().reduce([PairingStep]()) { $0 + [$1] }
 
         #expect(steps == [.scanCode("code-1"), .scanCode("code-2"), .paired])
         #expect(client.calls.first == .startPairing)
@@ -92,6 +89,23 @@ import Testing
         client.emit(.paired)
         try await task.value
         #expect(clock.sleeperCount == 0)
+    }
+
+    @Test func aFailedRefreshDoesNotStopLaterOnes() async throws {
+        let client = FakeMessagingClient()
+        client.stubRefresh(throwing: .phoneUnreachable)
+        let clock = ManualClock()
+        let pairing = PairDevice(client: client, clock: clock)()
+        let task = Task { for try await _ in pairing {} }
+
+        for expected in 1...2 {
+            #expect(await eventually { clock.sleeperCount == 1 })
+            clock.advance(by: PairDevice.codeLifetime)
+            #expect(await eventually { refreshes(client) == expected })
+        }
+
+        client.emit(.paired)
+        try await task.value
     }
 
     private func refreshes(_ client: FakeMessagingClient) -> Int {

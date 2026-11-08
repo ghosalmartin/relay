@@ -15,6 +15,7 @@ public enum ConnectionStatus: Equatable, Sendable {
     /// The status after `event`, or nil if the event says nothing about the connection.
     public static func after(_ event: MessagingEvent) -> ConnectionStatus? {
         switch event {
+        case .paired: .connecting   // a fresh session; forget how the last one ended
         case .initialSyncCompleted, .connectionRestored: .online
         case .phoneReachabilityChanged(let isReachable): isReachable ? .online : .phoneUnreachable
         case .connectionInterrupted: .reconnecting

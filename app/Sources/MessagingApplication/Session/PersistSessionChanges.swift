@@ -4,16 +4,17 @@ import MessagingDomain
 /// saves every session change and clears the store on logout.
 /// Start it once at launch, in a task that lives as long as the app.
 public struct PersistSessionChanges: Sendable {
-    private let client: any MessagingClient
+    private let events: AsyncStream<MessagingEvent>
     private let store: any SessionStore
 
+    /// Subscribes straight away, so credentials can't change unnoticed before this starts running.
     public init(client: any MessagingClient, store: any SessionStore) {
-        self.client = client
+        events = client.events()
         self.store = store
     }
 
     public func callAsFunction() async {
-        for await event in client.events() {
+        for await event in events {
             await persist(event)
         }
     }

@@ -36,14 +36,12 @@ public enum ThreadLayout {
 
     public static func items(for messages: [Message], in conversation: Conversation, calendar: Calendar) -> [ThreadItem] {
         let newestMine = messages.last(where: \.isFromMe)?.id
-        var items: [ThreadItem] = []
-        for (index, message) in messages.enumerated() {
+        return messages.enumerated().flatMap { index, message -> [ThreadItem] in
             let previous = index > 0 ? messages[index - 1] : nil
             let following = index + 1 < messages.count ? messages[index + 1] : nil
-            if previous.map({ !calendar.isDate($0.sentAt, inSameDayAs: message.sentAt) }) ?? true {
-                items.append(.daySeparator(calendar.startOfDay(for: message.sentAt)))
-            }
-            items.append(.bubble(MessageBubble(
+            let startsDay = previous.map { !calendar.isDate($0.sentAt, inSameDayAs: message.sentAt) } ?? true
+            let separator: [ThreadItem] = startsDay ? [.daySeparator(calendar.startOfDay(for: message.sentAt))] : []
+            return separator + [.bubble(MessageBubble(
                 id: message.id,
                 text: message.text,
                 attachments: message.parts.compactMap(attachment),
@@ -53,9 +51,8 @@ public enum ThreadLayout {
                     ? senderName(of: message, in: conversation) : nil,
                 endsBurst: !continuesBurst(message, with: following),
                 status: message.id == newestMine ? message.status : nil
-            )))
+            ))]
         }
-        return items
     }
 
     static func continuesBurst(_ message: Message, with next: Message?) -> Bool {

@@ -57,9 +57,10 @@ import Testing
 @Suite struct ConnectionStatusTests {
     @Test func followsTheConnectionLifecycle() async {
         let client = FakeMessagingClient()
-        let statuses = ObserveConnectionStatus(client: client)()
+        let session = LiveSession(client: client)
+        let pump = Task { await session.run() }
+        let statuses = ObserveConnectionStatus(session: session)()
         let collected = Task { await statuses.first(4) }
-        #expect(await eventually { client.subscriberCount == 1 })
 
         client.emit(.initialSyncCompleted)
         client.emit(.initialSyncCompleted)              // repeat: dropped
@@ -67,5 +68,6 @@ import Testing
         client.emit(.connectionLost(reason: "revoked"))
 
         #expect(await collected.value == [.connecting, .online, .phoneUnreachable, .lost(reason: "revoked")])
+        pump.cancel()
     }
 }

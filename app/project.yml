@@ -21,7 +21,7 @@ targets:
     sources: [RelayApp]
     dependencies:
       - package: RelayKit
-        products: [MessagingDomain, MessagingApplication, Presentation, LibGMAdapter, KeychainAdapter]
+        products: [MessagingDomain, MessagingApplication, Presentation, LibGMAdapter, KeychainAdapter, UserNotificationsAdapter]
       - package: RelayKit
         product: MessagingTestSupport   # only referenced under #if DEBUG, for UI tests
     settings:
@@ -42,6 +42,9 @@ targets:
     type: bundle.ui-testing
     platform: macOS
     sources: [RelayUITests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Relay
 schemes:

@@ -19,11 +19,6 @@ public func eventually(
 extension AsyncSequence where Self: Sendable, Element: Sendable {
     /// The first `count` elements, or fewer if the sequence ends first.
     public func first(_ count: Int) async rethrows -> [Element] {
-        var out: [Element] = []
-        for try await element in self {
-            out.append(element)
-            if out.count == count { break }
-        }
-        return out
+        try await prefix(count).reduce([]) { $0 + [$1] }
     }
 }

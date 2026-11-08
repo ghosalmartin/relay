@@ -58,7 +58,7 @@ import Testing
         let viewModel = RootViewModel(
             startSession: StartSession(client: client, store: store),
             persistSessionChanges: PersistSessionChanges(client: client, store: store),
-            observeConnectionStatus: ObserveConnectionStatus(client: client),
+            observeConnectionStatus: ObserveConnectionStatus(session: LiveSession(client: client)),
             unpair: Unpair(client: client, store: store)
         )
         return (viewModel, client, store)

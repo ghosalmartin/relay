@@ -12,6 +12,7 @@ Ports and adapters. Each layer is its own SwiftPM target, and dependencies point
 - `Presentation`: MVI view models and pure reducers. No SwiftUI imports.
 - `LibGMAdapter`: the ONLY code that may import LibGMKit. Maps libgm protobufs to domain types.
 - `KeychainAdapter`: implements `SessionStore`.
+- `UserNotificationsAdapter`: implements `NotificationPresenter`.
 - `RelayApp/`: SwiftUI views plus `AppEnvironment`, the single composition root.
 - `LibGMKit/`: standalone package (Go bridge, generated protos, `LibGMSession`). Knows nothing about Relay.
 
@@ -21,7 +22,11 @@ Never let libgm or protobuf types leak above `LibGMAdapter`.
 
 `State` (struct), `Intent` (what the user did), `Mutation` (what happened), `Reducer.reduce(state, mutation)`
 (pure, no async/IO/clock), and a `@MainActor @Observable` view model exposing `state`, `send(_:)` and
-`run()` (long-running, called from `.task`).
+`run()` (long-running, called from `.task`). The exception is `RootViewModel`, which `AppEnvironment`
+owns and runs for the life of the app, so the session and notifications outlive the window.
+
+Anything listening to `MessagingClient.events()` must subscribe before the client can connect.
+Screens read app-scope state through `LiveSession` rather than subscribing late.
 
 Views render `state` and call `send(...)`. No logic, formatting rules or async calls in views:
 display rules belong in state or reducer code where they can be unit tested.
@@ -31,6 +36,8 @@ display rules belong in state or reducer code where they can be unit tested.
 - Swift 6 language mode, strict concurrency. async/await and structured concurrency. No Combine.
 - `AsyncSequence` for streams. `AsyncStream` is single-consumer; fan out with `AsyncBroadcast.Broadcaster`.
 - Typed throws where a layer has its own error type (`MessagingError`, `LibGMError`).
+- `let` and immutable values. Reducers and projections return new values; no stored `var` unless Swift requires it
+  (computed properties, property wrappers, `@Observable` state, state inside a `Mutex`, C out-parameters).
 - Clean Code: small types, one type per file (feature contracts may group State/Intent/Mutation),
   names that say what things do, comments that explain why, not what.
 - Native macOS look: system controls, accent colour, SF Symbols, light and dark mode. No copied branding.
@@ -63,10 +70,8 @@ cd app && xcodegen && open Relay.xcodeproj
 See docs/HANDOVER.md for the full session handover, known bugs and next steps.
 
 
-M0 (foundations) is done: Go, LibGMKit and app package tests pass on Linux.
-The SwiftUI views, KeychainAdapter and UI tests were written without a Mac compiler,
-so they have never been built. M1 starts by building on macOS, fixing compile errors,
-getting the UI tests green, then pairing a real phone.
+M1 is in progress: everything builds on macOS and all package and UI tests pass.
+Still to do: pair a real Android phone.
 
 ## Bridge ABI
 

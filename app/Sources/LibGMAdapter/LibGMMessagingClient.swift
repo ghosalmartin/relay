@@ -57,8 +57,12 @@ public final class LibGMMessagingClient: MessagingClient {
 
     public func unpair() async throws(MessagingError) {
         let session = try currentSession()
+        // Even if the phone can't be told, this device has stopped being paired.
+        defer {
+            endSession()
+            broadcaster.send(.loggedOut)
+        }
         try await mapErrors { () throws(LibGMError) in try await session.unpair() }
-        endSession()
     }
 
     // MARK: Messages

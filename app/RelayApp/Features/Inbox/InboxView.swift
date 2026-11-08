@@ -63,7 +63,7 @@ struct InboxView: View {
     @ViewBuilder
     private var detail: some View {
         if let conversation = viewModel.state.selectedConversation {
-            ThreadView(viewModel: environment.makeThreadViewModel(for: conversation))
+            ThreadView(environment: environment, conversation: conversation)
                 .id(conversation.id)
         } else {
             ContentUnavailableView("Select a Conversation", systemImage: "bubble.left")

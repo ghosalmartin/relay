@@ -4,9 +4,15 @@ import SwiftUI
 struct AvatarView: View {
     let initials: String
     let seed: String
-    var size: CGFloat = 36
+    let size: CGFloat
 
     private static let palette: [Color] = [.blue, .green, .orange, .pink, .purple, .teal, .indigo, .brown]
+
+    init(initials: String, seed: String, size: CGFloat = 36) {
+        self.initials = initials
+        self.seed = seed
+        self.size = size
+    }
 
     var body: some View {
         Text(initials)

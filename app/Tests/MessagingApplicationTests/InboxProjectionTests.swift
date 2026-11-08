@@ -5,60 +5,59 @@ import MessagingTestSupport
 import Testing
 
 @Suite struct InboxProjectionTests {
+    private func inbox(after events: MessagingEvent...) -> InboxProjection {
+        events.reduce(InboxProjection()) { $0.applying($1) }
+    }
+
     @Test func ordersConversationsByLatestActivity() {
-        var inbox = InboxProjection()
-        _ = inbox.apply(.conversationUpdated(Fixtures.conversation("old", lastActivity: .init(timeIntervalSince1970: 1))))
-        _ = inbox.apply(.conversationUpdated(Fixtures.conversation("new", lastActivity: .init(timeIntervalSince1970: 2))))
+        let inbox = inbox(after:
+            .conversationUpdated(Fixtures.conversation("old", lastActivity: .init(timeIntervalSince1970: 1))),
+            .conversationUpdated(Fixtures.conversation("new", lastActivity: .init(timeIntervalSince1970: 2)))
+        )
 
         #expect(inbox.conversations.map(\.id.rawValue) == ["new", "old"])
     }
 
     @Test func updateReplacesTheExistingConversation() {
-        var inbox = InboxProjection()
-        _ = inbox.apply(.conversationUpdated(Fixtures.conversation("c1", preview: "first")))
-        _ = inbox.apply(.conversationUpdated(Fixtures.conversation("c1", preview: "second")))
+        let inbox = inbox(after:
+            .conversationUpdated(Fixtures.conversation("c1", preview: "first")),
+            .conversationUpdated(Fixtures.conversation("c1", preview: "second"))
+        )
 
         #expect(inbox.conversations.count == 1)
         #expect(inbox.conversations.first?.preview?.text == "second")
     }
 
-    @Test func identicalUpdateReportsNoChange() {
-        var inbox = InboxProjection()
+    @Test func identicalUpdateChangesNothing() {
         let conversation = Fixtures.conversation("c1")
-        _ = inbox.apply(.conversationUpdated(conversation))
+        let before = inbox(after: .conversationUpdated(conversation))
 
-        let changed = inbox.apply(.conversationUpdated(conversation))
-
-        #expect(changed == false)
+        #expect(before.applying(.conversationUpdated(conversation)) == before)
     }
 
-    @Test func initialSyncIsReportedOnce() {
-        var inbox = InboxProjection()
+    @Test func initialSyncChangesTheInboxOnce() {
+        let synced = InboxProjection().applying(.initialSyncCompleted)
 
-        let first = inbox.apply(.initialSyncCompleted)
-        let second = inbox.apply(.initialSyncCompleted)
-
-        #expect(first)
-        #expect(second == false)
-        #expect(inbox.hasCompletedInitialSync)
+        #expect(synced != InboxProjection())
+        #expect(synced.applying(.initialSyncCompleted) == synced)
+        #expect(synced.hasCompletedInitialSync)
     }
 
     @Test func logoutEmptiesTheInbox() {
-        var inbox = InboxProjection()
-        _ = inbox.apply(.conversationUpdated(Fixtures.conversation("c1")))
-        _ = inbox.apply(.initialSyncCompleted)
+        let inbox = inbox(after: .conversationUpdated(Fixtures.conversation("c1")), .initialSyncCompleted)
 
-        let changed = inbox.apply(.loggedOut)
+        #expect(inbox.applying(.loggedOut) == InboxProjection())
+    }
 
-        #expect(changed)
-        #expect(inbox == InboxProjection())
+    @Test func pairingAgainEmptiesTheInbox() {
+        let inbox = inbox(after: .conversationUpdated(Fixtures.conversation("c1")), .initialSyncCompleted)
+
+        #expect(inbox.applying(.paired) == InboxProjection())
     }
 
     @Test func unrelatedEventsAreIgnored() {
-        var inbox = InboxProjection()
+        let inbox = InboxProjection()
 
-        let changed = inbox.apply(.phoneReachabilityChanged(isReachable: false))
-
-        #expect(changed == false)
+        #expect(inbox.applying(.phoneReachabilityChanged(isReachable: false)) == inbox)
     }
 }

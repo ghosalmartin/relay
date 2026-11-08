@@ -4,16 +4,11 @@ import SwiftUI
 /// Shows pairing or the inbox, as the root view model decides.
 struct RootView: View {
     let environment: AppEnvironment
-    @State private var viewModel: RootViewModel
 
-    init(environment: AppEnvironment) {
-        self.environment = environment
-        _viewModel = State(initialValue: environment.makeRootViewModel())
-    }
+    private var viewModel: RootViewModel { environment.rootViewModel }
 
     var body: some View {
         content
-            .task { await viewModel.run() }
             .animation(.default, value: viewModel.state)
     }
 
