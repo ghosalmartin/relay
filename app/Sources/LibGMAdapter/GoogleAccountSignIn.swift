@@ -12,14 +12,13 @@ public enum GoogleAccountSignIn {
 
     private static let requiredCookies = ["OSID": "messages.google.com", "SID": "google.com", "HSID": "google.com",
                                           "SSID": "google.com", "APISID": "google.com", "SAPISID": "google.com"]
-    private static let optionalCookies = ["__Secure-1PSIDTS": "google.com"]
 
     /// The cookies to pair with, or nil until every required one is present.
+    /// Only the required ones are kept: `__Secure-1PSIDTS` is optional and may go stale, as nothing here refreshes it.
     public static func cookies(from browserCookies: [BrowserCookie]) -> AccountCookies? {
-        let wanted = requiredCookies.merging(optionalCookies) { first, _ in first }
         let found = Dictionary(
             browserCookies
-                .filter { wanted[$0.name] == bareDomain($0.domain) }
+                .filter { requiredCookies[$0.name] == bareDomain($0.domain) }
                 .map { ($0.name, $0.value) },
             uniquingKeysWith: { first, _ in first }
         )
@@ -51,7 +50,7 @@ public enum GoogleAccountSignIn {
     }
 
     private static func isWanted(_ name: String) -> Bool {
-        requiredCookies[name] != nil || optionalCookies[name] != nil
+        requiredCookies[name] != nil
     }
 
     private static func bareDomain(_ domain: String) -> String {
