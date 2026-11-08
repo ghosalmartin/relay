@@ -11,6 +11,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
         case messages(ConversationID, HistoryCursor?, limit: Int)
         case sendText(String, ConversationID)
         case markRead(ConversationID, MessageID)
+        case attachmentData(Attachment)
     }
 
     private struct Stubs {
@@ -19,6 +20,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
         var unpairError: MessagingError?
         var pairingError: MessagingError?
         var page = MessagePage(messages: [], olderCursor: nil)
+        var attachment: Result<Data, MessagingError> = .success(Data())
         var eventsOnStartPairing: [MessagingEvent] = []
         var onStartPairing: (@Sendable () -> Void)?
         var onSendText: (@Sendable (String, ConversationID) -> Void)?
@@ -41,6 +43,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     public func stubUnpair(throwing error: MessagingError) { stubs.withLock { $0.unpairError = error } }
     public func stubPairing(throwing error: MessagingError) { stubs.withLock { $0.pairingError = error } }
     public func stubPage(_ page: MessagePage) { stubs.withLock { $0.page = page } }
+    public func stubAttachment(_ result: Result<Data, MessagingError>) { stubs.withLock { $0.attachment = result } }
     public func stubEventsOnStartPairing(_ events: [MessagingEvent]) { stubs.withLock { $0.eventsOnStartPairing = events } }
 
     /// Runs after `startPairing()`, e.g. to script a delayed `.paired` for UI tests.
@@ -91,6 +94,11 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
 
     public func markRead(_ conversation: ConversationID, upTo message: MessageID) async throws(MessagingError) {
         record(.markRead(conversation, message))
+    }
+
+    public func attachmentData(_ attachment: Attachment) async throws(MessagingError) -> Data {
+        record(.attachmentData(attachment))
+        return try stubs.withLock { $0.attachment }.get()
     }
 
     private func record(_ call: Call) { recorded.withLock { $0.append(call) } }

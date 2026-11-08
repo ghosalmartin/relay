@@ -8,6 +8,9 @@ public struct Message: Identifiable, Hashable, Sendable {
     public let sentAt: Date
     public let parts: [MessagePart]
     public let status: DeliveryStatus
+    public let reactions: [Reaction]
+    /// The message this one answers, when it was sent as a reply.
+    public let replyTo: MessageID?
 
     public init(
         id: MessageID,
@@ -15,7 +18,9 @@ public struct Message: Identifiable, Hashable, Sendable {
         sender: Sender,
         sentAt: Date,
         parts: [MessagePart],
-        status: DeliveryStatus
+        status: DeliveryStatus,
+        reactions: [Reaction] = [],
+        replyTo: MessageID? = nil
     ) {
         self.id = id
         self.conversationID = conversationID
@@ -23,6 +28,8 @@ public struct Message: Identifiable, Hashable, Sendable {
         self.sentAt = sentAt
         self.parts = parts
         self.status = status
+        self.reactions = reactions
+        self.replyTo = replyTo
     }
 
     public var isFromMe: Bool { sender == .me }
@@ -53,15 +60,32 @@ public struct Attachment: Hashable, Sendable {
     public let fileName: String
     public let mimeType: String
     public let byteCount: Int64?
+    /// Opaque to the app: whatever the messaging backend needs to fetch this file.
+    public let accessKey: Data
+    /// The file itself, when it came inside the message rather than needing a download.
+    public let inlineData: Data?
 
-    public init(id: String, fileName: String, mimeType: String, byteCount: Int64?) {
+    public init(id: String, fileName: String, mimeType: String, byteCount: Int64?, accessKey: Data = Data(), inlineData: Data? = nil) {
         self.id = id
         self.fileName = fileName
         self.mimeType = mimeType
         self.byteCount = byteCount
+        self.accessKey = accessKey
+        self.inlineData = inlineData
     }
 
     public var isImage: Bool { mimeType.hasPrefix("image/") }
+}
+
+/// One emoji on a message and how many people used it.
+public struct Reaction: Hashable, Sendable {
+    public let emoji: String
+    public let count: Int
+
+    public init(emoji: String, count: Int) {
+        self.emoji = emoji
+        self.count = count
+    }
 }
 
 public enum DeliveryStatus: Hashable, Sendable {

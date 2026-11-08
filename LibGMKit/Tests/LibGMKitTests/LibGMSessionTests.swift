@@ -33,6 +33,19 @@ import Testing
         #expect(call.contains(#""cursor_timestamp":42"#))
     }
 
+    @Test func downloadsMediaAsRawBytesWithABase64Key() async throws {
+        let bridge = FakeNativeBridge()
+        let wrapped = Google_Protobuf_BytesValue.with { $0.value = Data("picture".utf8) }
+        bridge.respond(to: .downloadMedia, with: .success(try wrapped.serializedBytes()))
+
+        let data = try await LibGMSession(bridge: bridge).downloadMedia(id: "m1", key: Data("key".utf8))
+
+        #expect(data == Data("picture".utf8))
+        let call = try #require(bridge.calls.first)
+        #expect(call.contains(#""media_id":"m1""#))
+        #expect(call.contains(#""key":"a2V5""#))
+    }
+
     @Test func decodesProtobufResponses() async throws {
         let bridge = FakeNativeBridge()
         let expected = GM.Conversation.with { $0.name = "Sam" }

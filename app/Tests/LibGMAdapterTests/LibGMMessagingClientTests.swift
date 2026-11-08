@@ -73,6 +73,30 @@ import Testing
         #expect(await events.first(1) == [.initialSyncCompleted])
     }
 
+    @Test func downloadingAnAttachmentUsesItsKey() async throws {
+        let sessions = FakeSessionFactory()
+        let client = LibGMMessagingClient(makeSession: sessions.factory)
+        try await client.connect(using: Fixtures.session)
+        let attachment = Attachment(id: "m1", fileName: "", mimeType: "image/png", byteCount: nil, accessKey: Data("secret".utf8))
+
+        let data = try await client.attachmentData(attachment)
+
+        #expect(data == Data("contents".utf8))
+        #expect(sessions.latest?.calls.last == "download:m1:secret")
+    }
+
+    @Test func anEmbeddedAttachmentNeedsNoDownload() async throws {
+        let sessions = FakeSessionFactory()
+        let client = LibGMMessagingClient(makeSession: sessions.factory)
+        try await client.connect(using: Fixtures.session)
+        let attachment = Attachment(id: "inline", fileName: "", mimeType: "image/png", byteCount: nil, inlineData: Data("embedded".utf8))
+
+        let data = try await client.attachmentData(attachment)
+
+        #expect(data == Data("embedded".utf8))
+        #expect(sessions.latest?.calls == ["connect"])
+    }
+
     @Test func sendingToAnUnknownConversationFails() async throws {
         let sessions = FakeSessionFactory()
         let client = LibGMMessagingClient(makeSession: sessions.factory)

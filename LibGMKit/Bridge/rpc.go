@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"go.mau.fi/mautrix-gmessages/pkg/libgm/gmproto"
 )
@@ -27,6 +29,7 @@ const (
 	MethodDeleteMessage           Method = 10 // json messageRequest -> DeleteMessageResponse
 	MethodGetConversation         Method = 11 // json conversationRequest -> Conversation
 	MethodUpdateConversation      Method = 12 // gmproto.UpdateConversationRequest -> response
+	MethodDownloadMedia           Method = 13 // json downloadMediaRequest -> wrapperspb.BytesValue
 )
 
 // MessagesAPI is the slice of libgm.Client the RPC table needs.
@@ -44,6 +47,7 @@ type MessagesAPI interface {
 	DeleteMessage(ctx context.Context, messageID string) (*gmproto.DeleteMessageResponse, error)
 	GetConversation(ctx context.Context, conversationID string) (*gmproto.Conversation, error)
 	UpdateConversation(context.Context, *gmproto.UpdateConversationRequest) (*gmproto.UpdateConversationResponse, error)
+	DownloadMedia(ctx context.Context, mediaID string, key []byte) (io.ReadCloser, error)
 }
 
 // Bridge-only request shapes for calls whose libgm signature takes plain arguments.
@@ -70,6 +74,10 @@ type (
 	}
 	conversationRequest struct {
 		ConversationID string `json:"conversation_id"`
+	}
+	downloadMediaRequest struct {
+		MediaID string `json:"media_id"`
+		Key     []byte `json:"key"`
 	}
 )
 
@@ -111,6 +119,18 @@ var handlers = map[Method]handler{
 	}),
 	MethodUpdateConversation: protoCall(func(ctx context.Context, api MessagesAPI, r *gmproto.UpdateConversationRequest) (proto.Message, error) {
 		return api.UpdateConversation(ctx, r)
+	}),
+	MethodDownloadMedia: jsonCall(func(ctx context.Context, api MessagesAPI, r downloadMediaRequest) (proto.Message, error) {
+		body, err := api.DownloadMedia(ctx, r.MediaID, r.Key)
+		if err != nil {
+			return nil, fmt.Errorf("download media: %w", err)
+		}
+		defer body.Close()
+		data, err := io.ReadAll(body)
+		if err != nil {
+			return nil, fmt.Errorf("read media: %w", err)
+		}
+		return wrapperspb.Bytes(data), nil
 	}),
 }
 

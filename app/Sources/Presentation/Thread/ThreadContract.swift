@@ -2,6 +2,13 @@ import Foundation
 import MessagingApplication
 import MessagingDomain
 
+/// How far along fetching one attachment is.
+public enum AttachmentContent: Equatable, Sendable {
+    case loading
+    case loaded(Data)
+    case failed
+}
+
 public struct ThreadState: Equatable, Sendable {
     public enum History: Equatable, Sendable {
         case loading
@@ -17,6 +24,8 @@ public struct ThreadState: Equatable, Sendable {
     public let draft: String
     public let isSending: Bool
     public let sendError: String?
+    /// By attachment ID. Absent until something asks for that attachment.
+    public let attachments: [String: AttachmentContent]
 
     public init(
         conversation: Conversation,
@@ -26,7 +35,8 @@ public struct ThreadState: Equatable, Sendable {
         isLoadingOlder: Bool = false,
         draft: String = "",
         isSending: Bool = false,
-        sendError: String? = nil
+        sendError: String? = nil,
+        attachments: [String: AttachmentContent] = [:]
     ) {
         self.conversation = conversation
         self.messages = messages
@@ -36,6 +46,7 @@ public struct ThreadState: Equatable, Sendable {
         self.draft = draft
         self.isSending = isSending
         self.sendError = sendError
+        self.attachments = attachments
     }
 
     /// A copy with the given fields replaced. For an optional field, `.some(nil)` clears it and omitting it keeps it.
@@ -47,7 +58,8 @@ public struct ThreadState: Equatable, Sendable {
         isLoadingOlder: Bool? = nil,
         draft: String? = nil,
         isSending: Bool? = nil,
-        sendError: String?? = nil
+        sendError: String?? = nil,
+        attachments: [String: AttachmentContent]? = nil
     ) -> ThreadState {
         ThreadState(
             conversation: conversation ?? self.conversation,
@@ -57,7 +69,8 @@ public struct ThreadState: Equatable, Sendable {
             isLoadingOlder: isLoadingOlder ?? self.isLoadingOlder,
             draft: draft ?? self.draft,
             isSending: isSending ?? self.isSending,
-            sendError: sendError ?? self.sendError
+            sendError: sendError ?? self.sendError,
+            attachments: attachments ?? self.attachments
         )
     }
 
@@ -79,6 +92,9 @@ public enum ThreadIntent: Equatable, Sendable {
     case retryHistoryTapped
     case sendErrorDismissed
     case conversationChanged(Conversation)
+    /// A picture scrolled into view and needs its contents.
+    case attachmentAppeared(Attachment)
+    case attachmentTapped(Attachment)
 }
 
 public enum ThreadMutation: Equatable, Sendable {
@@ -96,4 +112,5 @@ public enum ThreadMutation: Equatable, Sendable {
     case sendFailed(String)
     case sendErrorDismissed
     case conversationChanged(Conversation)
+    case attachmentChanged(id: String, AttachmentContent)
 }

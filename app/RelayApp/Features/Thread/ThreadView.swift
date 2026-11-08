@@ -51,7 +51,10 @@ struct ThreadView: View {
                 items: viewModel.state.items(),
                 canLoadOlder: viewModel.state.canLoadOlder,
                 isLoadingOlder: viewModel.state.isLoadingOlder,
-                onLoadOlder: { viewModel.send(.loadOlderTapped) }
+                onLoadOlder: { viewModel.send(.loadOlderTapped) },
+                attachments: viewModel.state.attachments,
+                onAttachmentAppear: { viewModel.send(.attachmentAppeared($0)) },
+                onAttachmentTap: { viewModel.send(.attachmentTapped($0)) }
             )
         }
     }

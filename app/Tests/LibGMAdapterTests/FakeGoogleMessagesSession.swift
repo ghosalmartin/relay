@@ -46,6 +46,11 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
         return page.withLock { $0 }
     }
 
+    func downloadMedia(id: String, key: Data) async throws(LibGMError) -> Data {
+        record("download:\(id):\(String(decoding: key, as: UTF8.self))")
+        return Data("contents".utf8)
+    }
+
     func send(_ request: GM.SendMessageRequest) async throws(LibGMError) -> GM.SendMessageResponse {
         sent.withLock { $0.append(request) }
         return GM.SendMessageResponse()
