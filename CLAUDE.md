@@ -60,6 +60,9 @@ cd app && xcodegen && open Relay.xcodeproj
 
 ## Status
 
+See docs/HANDOVER.md for the full session handover, known bugs and next steps.
+
+
 M0 (foundations) is done: Go, LibGMKit and app package tests pass on Linux.
 The SwiftUI views, KeychainAdapter and UI tests were written without a Mac compiler,
 so they have never been built. M1 starts by building on macOS, fixing compile errors,
