@@ -1,13 +1,15 @@
 /// Polls `condition` every millisecond until it holds or `timeout` passes.
 /// For tests that must wait for a background task (e.g. a subscriber to start listening).
 /// Returns whether the condition was met, so callers can `#expect` on it.
+/// Runs on the caller's actor, so `@MainActor` tests can read view-model state directly.
 @discardableResult
 public func eventually(
     timeout: Duration = .seconds(2),
-    _ condition: @Sendable () -> Bool
+    isolation: isolated (any Actor)? = #isolation,
+    _ condition: () async -> Bool
 ) async -> Bool {
     let deadline = ContinuousClock.now + timeout
-    while !condition() {
+    while await !condition() {
         guard ContinuousClock.now < deadline else { return false }
         try? await Task.sleep(for: .milliseconds(1))
     }
