@@ -1,4 +1,5 @@
 import MessagingApplication
+import MessagingDomain
 import Observation
 
 @MainActor @Observable
@@ -8,11 +9,13 @@ public final class InboxViewModel {
     private let observeInbox: ObserveInbox
     private let observeConnectionStatus: ObserveConnectionStatus
     private let focus: ConversationFocus
+    private let loadAvatars: LoadAvatars
 
-    public init(observeInbox: ObserveInbox, observeConnectionStatus: ObserveConnectionStatus, focus: ConversationFocus) {
+    public init(observeInbox: ObserveInbox, observeConnectionStatus: ObserveConnectionStatus, focus: ConversationFocus, loadAvatars: LoadAvatars) {
         self.observeInbox = observeInbox
         self.observeConnectionStatus = observeConnectionStatus
         self.focus = focus
+        self.loadAvatars = loadAvatars
     }
 
     /// Keeps the inbox live until the view goes away. Call from the view's `.task`.
@@ -34,8 +37,23 @@ public final class InboxViewModel {
     }
 
     private func followInbox() async {
-        for await snapshot in observeInbox() {
-            apply(.inboxChanged(snapshot))
+        // Photos load alongside, because a slow phone mustn't hold up inbox changes.
+        await withDiscardingTaskGroup { group in
+            for await snapshot in observeInbox() {
+                apply(.inboxChanged(snapshot))
+                let missing = state.avatarsToLoad
+                guard !missing.isEmpty else { continue }
+                apply(.avatarsRequested(missing))
+                group.addTask { await self.fetchAvatars(missing) }
+            }
+        }
+    }
+
+    private func fetchAvatars(_ participants: Set<ParticipantID>) async {
+        do {
+            apply(.avatarsLoaded(try await loadAvatars(participants)))
+        } catch {
+            apply(.avatarsFailed(participants))
         }
     }
 

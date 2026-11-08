@@ -20,6 +20,7 @@ public final class LibGMMessagingClient: MessagingClient {
 
     private static let inboxSize: Int64 = 50
     private static let log = Logger(subsystem: "dev.featurenotabug.Relay", category: "attachments")
+    private static let avatarLog = Logger(subsystem: "dev.featurenotabug.Relay", category: "avatars")
 
     private let makeSession: GoogleMessagesSessionFactory
     private let broadcaster = Broadcaster<MessagingEvent>()
@@ -108,6 +109,21 @@ public final class LibGMMessagingClient: MessagingClient {
             Self.log.error("Attachment download failed (\(attachment.mimeType, privacy: .public)): \(String(describing: error), privacy: .public)")
             throw error
         }
+    }
+
+    public func avatars(for participants: Set<ParticipantID>) async throws(MessagingError) -> [ParticipantID: Data] {
+        let session = try currentSession()
+        let response = try await mapErrors { () throws(LibGMError) in
+            try await session.participantThumbnails(ids: participants.map(\.rawValue))
+        }
+        let photos = Dictionary(
+            response.thumbnail
+                .filter { !$0.data.imageBuffer.isEmpty }
+                .map { (ParticipantID($0.identifier), $0.data.imageBuffer) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        Self.avatarLog.notice("Asked for \(participants.count) avatars, phone returned \(response.thumbnail.count), \(photos.count) with photos")
+        return photos
     }
 
     // MARK: Session lifecycle

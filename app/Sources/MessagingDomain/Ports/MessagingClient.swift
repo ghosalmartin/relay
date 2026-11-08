@@ -27,4 +27,6 @@ public protocol MessagingClient: Sendable {
     func markRead(_ conversation: ConversationID, upTo message: MessageID) async throws(MessagingError)
     /// The contents of a file attached to a message.
     func attachmentData(_ attachment: Attachment) async throws(MessagingError) -> Data
+    /// Contact photos as image data. People without a photo are left out of the result.
+    func avatars(for participants: Set<ParticipantID>) async throws(MessagingError) -> [ParticipantID: Data]
 }

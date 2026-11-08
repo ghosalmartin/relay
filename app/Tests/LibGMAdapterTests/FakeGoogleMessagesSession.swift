@@ -11,6 +11,7 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
     private let log = Mutex<[String]>([])
     private let sent = Mutex<[GM.SendMessageRequest]>([])
     private let page = Mutex(GM.ListMessagesResponse())
+    private let thumbnails = Mutex(GM.GetThumbnailResponse())
     private let inbox = Mutex<Result<GM.ListConversationsResponse, LibGMError>>(.success(GM.ListConversationsResponse()))
 
     init(savedSession: Data?) {
@@ -23,6 +24,7 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
 
     func emit(_ event: LibGMEvent) { continuation.yield(event) }
     func stubPage(_ response: GM.ListMessagesResponse) { page.withLock { $0 = response } }
+    func stubThumbnails(_ response: GM.GetThumbnailResponse) { thumbnails.withLock { $0 = response } }
     func stubInbox(_ result: Result<GM.ListConversationsResponse, LibGMError>) { inbox.withLock { $0 = result } }
 
     func startGoogleAccountPairing(cookies: [String: String]) async throws(LibGMError) {
@@ -49,6 +51,11 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
     func downloadMedia(id: String, key: Data) async throws(LibGMError) -> Data {
         record("download:\(id):\(String(decoding: key, as: UTF8.self))")
         return Data("contents".utf8)
+    }
+
+    func participantThumbnails(ids: [String]) async throws(LibGMError) -> GM.GetThumbnailResponse {
+        record("thumbnails:" + ids.sorted().joined(separator: ","))
+        return thumbnails.withLock { $0 }
     }
 
     func send(_ request: GM.SendMessageRequest) async throws(LibGMError) -> GM.SendMessageResponse {
