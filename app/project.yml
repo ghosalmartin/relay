@@ -1,37 +1,55 @@
-# XcodeGen spec: `brew install xcodegen && xcodegen` generates Relay.xcodeproj.
+# XcodeGen spec. `brew install xcodegen && xcodegen` generates Relay.xcodeproj.
+# All logic lives in the local Swift packages; this target is views + composition root.
 name: Relay
 options:
   bundleIdPrefix: dev.featurenotabug
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "15.0"
 packages:
-  SwiftProtobuf:
-    url: https://github.com/apple/swift-protobuf
-    from: 1.28.0
-targets:
   RelayKit:
-    type: framework
-    platform: macOS
-    sources: [Sources/RelayKit]
-    dependencies:
-      - framework: ../bridge/build/GMBridge.xcframework
-        embed: false
-      - package: SwiftProtobuf
-      - sdk: libresolv.tbd
+    path: .
+  LibGMKit:
+    path: ../LibGMKit
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+targets:
   Relay:
     type: application
     platform: macOS
-    sources: [Sources/Relay]
+    sources: [RelayApp]
     dependencies:
-      - target: RelayKit
+      - package: RelayKit
+        products: [MessagingDomain, MessagingApplication, Presentation, LibGMAdapter, KeychainAdapter]
+      - package: RelayKit
+        product: MessagingTestSupport   # only referenced under #if DEBUG, for UI tests
     settings:
       base:
         PRODUCT_NAME: Relay
-        ENABLE_HARDENED_RUNTIME: YES
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.social-networking
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Relay
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.social-networking
+        ENABLE_HARDENED_RUNTIME: YES
     entitlements:
-      path: Sources/Relay/Relay.entitlements
+      path: RelayApp/Relay.entitlements
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
+  RelayUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [RelayUITests]
+    dependencies:
+      - target: Relay
+schemes:
+  Relay:
+    build:
+      targets:
+        Relay: all
+        RelayUITests: [test]
+    test:
+      targets: [RelayUITests]
+      gatherCoverageData: true

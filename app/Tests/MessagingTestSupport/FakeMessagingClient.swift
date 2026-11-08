@@ -17,6 +17,8 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
         var sendError: MessagingError?
         var page = MessagePage(messages: [], olderCursor: nil)
         var eventsOnStartPairing: [MessagingEvent] = []
+        var onStartPairing: (@Sendable () -> Void)?
+        var onSendText: (@Sendable (String, ConversationID) -> Void)?
     }
 
     private let broadcaster = Broadcaster<MessagingEvent>()
@@ -36,6 +38,18 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     public func stubPage(_ page: MessagePage) { stubs.withLock { $0.page = page } }
     public func stubEventsOnStartPairing(_ events: [MessagingEvent]) { stubs.withLock { $0.eventsOnStartPairing = events } }
 
+    /// Runs after `startPairing()`, e.g. to script a delayed `.paired` for UI tests.
+    public var onStartPairing: (@Sendable () -> Void)? {
+        get { stubs.withLock { $0.onStartPairing } }
+        set { stubs.withLock { $0.onStartPairing = newValue } }
+    }
+
+    /// Runs after a successful `sendText`, e.g. to echo the message back.
+    public var onSendText: (@Sendable (String, ConversationID) -> Void)? {
+        get { stubs.withLock { $0.onSendText } }
+        set { stubs.withLock { $0.onSendText = newValue } }
+    }
+
     // MARK: MessagingClient
 
     public func events() -> AsyncStream<MessagingEvent> { broadcaster.subscribe() }
@@ -43,6 +57,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     public func startPairing() async throws(MessagingError) {
         record(.startPairing)
         stubs.withLock { $0.eventsOnStartPairing }.forEach(emit)
+        onStartPairing?()
     }
 
     public func refreshPairingCode() async throws(MessagingError) { record(.refreshPairingCode) }
@@ -63,6 +78,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     public func sendText(_ text: String, to conversation: ConversationID) async throws(MessagingError) {
         record(.sendText(text, conversation))
         if let error = stubs.withLock({ $0.sendError }) { throw error }
+        onSendText?(text, conversation)
     }
 
     public func markRead(_ conversation: ConversationID, upTo message: MessageID) async throws(MessagingError) {
