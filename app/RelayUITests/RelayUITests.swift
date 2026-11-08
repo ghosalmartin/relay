@@ -11,10 +11,10 @@ final class RelayUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testPairingShowsAQRCode() {
+    func testPairingAsksYouToConfirmTheEmoji() {
         launch("--ui-testing-hold-pairing")
 
-        XCTAssertTrue(app.images["pairing.qr"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["pairing.emoji"].waitForExistence(timeout: 5))
     }
 
     func testPairingLeadsToTheInbox() {

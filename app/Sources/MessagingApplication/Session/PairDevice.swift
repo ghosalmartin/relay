@@ -2,30 +2,23 @@ import MessagingDomain
 
 /// What the pairing screen should show next.
 public enum PairingStep: Equatable, Sendable {
-    case scanCode(String)
     case confirmEmoji(String)
     case paired
 }
 
-/// Runs QR pairing: shows a code, swaps it for a fresh one before it expires,
-/// and finishes once the phone has accepted this device.
+/// Pairs with the phone using a signed-in account, and finishes once the phone has accepted this device.
 public struct PairDevice: Sendable {
-    /// Codes expire after about 30 seconds; refresh a little early.
-    public static let codeLifetime: Duration = .seconds(25)
-
     private let client: any MessagingClient
-    private let clock: any Clock<Duration>
 
-    public init(client: any MessagingClient, clock: any Clock<Duration> = ContinuousClock()) {
+    public init(client: any MessagingClient) {
         self.client = client
-        self.clock = clock
     }
 
-    public func callAsFunction() -> AsyncThrowingStream<PairingStep, any Error> {
+    public func callAsFunction(with cookies: AccountCookies) -> AsyncThrowingStream<PairingStep, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    try await run(reportingTo: continuation)
+                    try await run(with: cookies, reportingTo: continuation)
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -35,31 +28,32 @@ public struct PairDevice: Sendable {
         }
     }
 
-    private func run(reportingTo output: AsyncThrowingStream<PairingStep, any Error>.Continuation) async throws {
-        let events = client.events()          // subscribe before starting, so no code is missed
+    private func run(
+        with cookies: AccountCookies,
+        reportingTo output: AsyncThrowingStream<PairingStep, any Error>.Continuation
+    ) async throws {
+        let events = client.events()          // subscribe before starting, so the emoji can't be missed
         try await withThrowingTaskGroup(of: Void.self) { group in
-            group.addTask { try await refreshCodes() }
-            try await client.startPairing()
-            for await event in events {
-                guard let step = Self.step(for: event) else { continue }
-                output.yield(step)
-                if step == .paired { break }
-            }
-            group.cancelAll()
+            // startPairing only returns once the phone has answered, so the steps are followed alongside it.
+            group.addTask { try await client.startPairing(with: cookies) }
+            group.addTask { await report(events, to: output) }
+            while try await group.next() != nil {}   // the first failure ends pairing
         }
     }
 
-    private func refreshCodes() async throws {
-        while true {
-            try await clock.sleep(for: Self.codeLifetime)
-            // A failed refresh mustn't end the loop; the code on screen is only good for a few more seconds.
-            try? await client.refreshPairingCode()
+    private func report(
+        _ events: AsyncStream<MessagingEvent>,
+        to output: AsyncThrowingStream<PairingStep, any Error>.Continuation
+    ) async {
+        for await event in events {
+            guard let step = Self.step(for: event) else { continue }
+            output.yield(step)
+            if step == .paired { return }
         }
     }
 
     static func step(for event: MessagingEvent) -> PairingStep? {
         switch event {
-        case .pairingCode(let code): .scanCode(code)
         case .pairingConfirmationEmoji(let emoji): .confirmEmoji(emoji)
         case .paired: .paired
         default: nil

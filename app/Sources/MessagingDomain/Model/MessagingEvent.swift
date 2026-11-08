@@ -1,8 +1,6 @@
 /// Everything a messaging client can tell the app, in domain terms.
 public enum MessagingEvent: Sendable, Equatable {
-    /// A pairing code to show the user, typically rendered as a QR code. Replaces any earlier code.
-    case pairingCode(String)
-    /// An emoji the user must confirm on their phone (Google-account pairing).
+    /// An emoji the user must tap on their phone to finish pairing.
     case pairingConfirmationEmoji(String)
     case paired
     /// Credentials changed and must be persisted.

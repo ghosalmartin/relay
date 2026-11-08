@@ -5,7 +5,6 @@ import MessagingDomain
 enum EventMapper {
     static func event(from event: LibGMEvent) -> MessagingEvent? {
         switch event {
-        case .qrCode(let code): .pairingCode(code)
         case .googleAccountEmoji(let emoji): .pairingConfirmationEmoji(emoji)
         case .paired: .paired
         case .sessionUpdated(let bytes): .sessionChanged(SessionData(bytes: bytes))
@@ -18,7 +17,7 @@ enum EventMapper {
         case .connectionRecovered: .connectionRestored
         case .fatalError(let reason): .connectionLost(reason: reason)
         case .loggedOut: .loggedOut
-        case .settings: nil
+        case .settings, .qrCode: nil
         }
     }
 

@@ -57,6 +57,7 @@ replay pairing codes and messages to screens that shouldn't see them.
 ## Other things worth checking
 
 - **Composer doesn't take focus when a conversation opens.** `.onAppear`, `.task` and `.defaultFocus` were all tried; the sidebar keeps the keyboard. You have to click the field.
+- **QR pairing is gone.** Google discontinued it, so the app pairs by Google sign-in plus an emoji on the phone. The default is signing in through Chrome and pasting a DevTools "Copy as cURL" command, because passkeys can't work in a `WKWebView`; the embedded page remains as a fallback. The bridge still has the QR calls (ABI is append-only).
 - **Muted conversations still alert.** libgm's `Conversation` message carries no mute flag that the adapter maps yet.
 - **Fragile error mapping.** `ErrorMapper` recognises "not logged in" and timeouts by matching libgm's error *text*.
   If libgm wording changes, `StartSession` stops clearing dead sessions. A better fix is to have the Go bridge

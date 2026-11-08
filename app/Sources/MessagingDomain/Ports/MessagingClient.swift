@@ -1,3 +1,5 @@
+import Foundation
+
 /// The port every messaging backend implements. libgm is one adapter; anything else
 /// that can pair, sync and send can replace it without touching the rest of the app.
 ///
@@ -9,11 +11,10 @@
 public protocol MessagingClient: Sendable {
     func events() -> AsyncStream<MessagingEvent>
 
-    /// Starts phone pairing. Progress arrives as `.pairingCode`, then `.paired` and `.sessionChanged`.
+    /// Pairs using an account the user has signed in to. Suspends until the phone has accepted
+    /// or refused. Progress arrives as `.pairingConfirmationEmoji`, then `.sessionChanged` and `.paired`.
     /// After `.paired` the client connects on its own; conversations then stream in.
-    func startPairing() async throws(MessagingError)
-    /// Issues a fresh pairing code; codes expire after about 30 seconds.
-    func refreshPairingCode() async throws(MessagingError)
+    func startPairing(with cookies: AccountCookies) async throws(MessagingError)
 
     /// Connects with saved credentials. Conversations then stream in as events.
     func connect(using session: SessionData) async throws(MessagingError)

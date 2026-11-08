@@ -5,8 +5,7 @@ import LibGMKit
 /// `LibGMMessagingClient` testable without the native library.
 public protocol GoogleMessagesSession: Sendable {
     var events: AsyncStream<LibGMEvent> { get }
-    func startQRPairing() async throws(LibGMError)
-    func refreshQRCode() async throws(LibGMError)
+    func startGoogleAccountPairing(cookies: [String: String]) async throws(LibGMError)
     func connect() async throws(LibGMError)
     func disconnect() async
     func unpair() async throws(LibGMError)

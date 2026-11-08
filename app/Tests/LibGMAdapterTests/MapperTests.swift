@@ -117,10 +117,27 @@ import Testing
 
 @Suite struct EventAndErrorMapperTests {
     @Test func mapsLifecycleEvents() {
-        #expect(EventMapper.event(from: .qrCode("qr")) == .pairingCode("qr"))
+        #expect(EventMapper.event(from: .qrCode("qr")) == nil)
+        #expect(EventMapper.event(from: .googleAccountEmoji("🦊")) == .pairingConfirmationEmoji("🦊"))
         #expect(EventMapper.event(from: .phoneReachable(false)) == .phoneReachabilityChanged(isReachable: false))
         #expect(EventMapper.event(from: .fatalError("revoked")) == .connectionLost(reason: "revoked"))
         #expect(EventMapper.event(from: .sessionUpdated(Data([1]))) == .sessionChanged(SessionData(bytes: Data([1]))))
+    }
+
+    @Test(arguments: [
+        ("google account pairing: client init timed out", "Your phone didn't answer"),
+        ("google account pairing: client init timed out (phone hasn't been seen recently)", "hasn't connected"),
+        ("google account pairing: no devices found for gaia pairing", "No phone found"),
+        ("google account pairing: user chose incorrect emoji on phone", "wrong emoji"),
+        ("google account pairing: user cancelled pairing on phone", "cancelled"),
+        ("google account pairing: pairing timed out (code: 1/2)", "in time"),
+    ])
+    func pairingFailuresAreInPlainWords(reason: String, expected: String) {
+        guard case .backend(let message) = ErrorMapper.error(from: .bridge(reason)) else {
+            Issue.record("expected a backend message")
+            return
+        }
+        #expect(message.contains(expected))
     }
 
     @Test func dropsSystemNoticeMessages() {

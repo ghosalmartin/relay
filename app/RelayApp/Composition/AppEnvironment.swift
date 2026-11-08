@@ -18,6 +18,7 @@ final class AppEnvironment {
     private let session: LiveSession
     private let focus: ConversationFocus
     private let notifyIncomingMessages: NotifyIncomingMessages
+    private let scriptedSignIn: AccountCookies?
 
     /// Everything that listens to the client is built here, before `start()` can connect it,
     /// so none of them can miss the burst of events that follows.
@@ -26,13 +27,15 @@ final class AppEnvironment {
         store: any SessionStore,
         presenter: any NotificationPresenter,
         focus: ConversationFocus,
-        windowOpener: MainWindowOpener
+        windowOpener: MainWindowOpener,
+        scriptedSignIn: AccountCookies? = nil
     ) {
         let session = LiveSession(client: client)
         self.client = client
         self.session = session
         self.focus = focus
         self.windowOpener = windowOpener
+        self.scriptedSignIn = scriptedSignIn
         notifyIncomingMessages = NotifyIncomingMessages(client: client, presenter: presenter, focus: focus)
         rootViewModel = RootViewModel(
             startSession: StartSession(client: client, store: store),
@@ -53,7 +56,8 @@ final class AppEnvironment {
                 store: UITestLaunch.makeStore(),
                 presenter: UITestLaunch.makePresenter(),
                 focus: focus,
-                windowOpener: windowOpener
+                windowOpener: windowOpener,
+                scriptedSignIn: UITestLaunch.signIn
             )
         }
         #endif
@@ -91,7 +95,16 @@ final class AppEnvironment {
     }
 
     func makePairingViewModel(onPaired: @escaping @MainActor () -> Void) -> PairingViewModel {
-        PairingViewModel(pairDevice: PairDevice(client: client), onPaired: onPaired)
+        PairingViewModel(
+            pairDevice: PairDevice(client: client),
+            scriptedSignIn: scriptedSignIn,
+            cookiePaste: CookiePaste(
+                read: { NSPasteboard.general.string(forType: .string) },
+                clear: { _ = NSPasteboard.general.clearContents() },
+                parse: GoogleAccountSignIn.cookies(fromCurl:)
+            ),
+            onPaired: onPaired
+        )
     }
 
     func makeInboxViewModel() -> InboxViewModel {
