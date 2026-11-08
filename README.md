@@ -1,10 +1,30 @@
 # Relay
 
+> [!WARNING]
+> **This is a vibecoded app.** It is a personal pet project, written almost entirely by an AI
+> coding agent (Claude Code) from prompts, and it has not been reviewed line by line by a human.
+> Expect bugs. It handles your private messages and the credentials for your phone link, so read
+> the code before you trust it with anything that matters. No support, no warranty, no promises.
+
 A native macOS client for Google Messages (Android Messages), written in SwiftUI on
 top of [libgm](https://github.com/mautrix/gmessages/tree/main/pkg/libgm).
-Working name. Not affiliated with Google.
+Working name. Not affiliated with or endorsed by Google.
+
+macOS only. It needs an Android phone running Google Messages: your texts live on the phone,
+and the Mac pairs with it the same way messages.google.com/web does. libgm uses an unofficial
+protocol, so Google could break this at any time.
 
 Licensed AGPL-3.0, because libgm is (see LICENSE).
+
+## Status
+
+Early and unfinished. There are no releases yet, so you have to build it yourself.
+
+- Package tests and UI tests pass, but the UI tests run against a scripted client.
+- **It has not been tried with a real phone yet**, so pairing, real messages and real
+  notifications are all unproven.
+- Written so far: QR pairing, inbox, threads, sending text, and macOS notifications that open
+  their conversation when clicked.
 
 ## Layout
 
@@ -19,6 +39,7 @@ app/                      The Relay app
     Presentation/           MVI view models + pure reducers. No SwiftUI.
     LibGMAdapter/           The only code that knows libgm exists: LibGMKit → MessagingClient.
     KeychainAdapter/        SessionStore in the Keychain.
+    UserNotificationsAdapter/  NotificationPresenter on macOS Notification Centre.
     AsyncBroadcast/         One stream, many subscribers (Swift's missing SharedFlow).
   RelayApp/                 SwiftUI views + composition root (AppEnvironment)
   RelayUITests/             XCUITest flows against a scripted client
@@ -43,7 +64,7 @@ functions, so every display rule is a plain unit test.
 ## Build and run (macOS 15+, Xcode 16+, Go 1.26+)
 
 ```sh
-brew install xcodegen
+brew install xcodegen go
 ./LibGMKit/Bridge/build-xcframework.sh
 cd app && xcodegen && open Relay.xcodeproj
 ```
