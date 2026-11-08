@@ -69,9 +69,16 @@ import Testing
         #expect(GoogleAccountSignIn.cookies(fromCurl: text) == nil)
     }
 
-    @Test func keepsTheOptionalCookieWhenThereIsOne() {
-        let optional = BrowserCookie(name: "__Secure-1PSIDTS", domain: ".google.com", value: "ts")
+    @Test func leavesOutTheCookieThatCanGoStale() {
+        let stale = BrowserCookie(name: "__Secure-1PSIDTS", domain: ".google.com", value: "ts")
 
-        #expect(GoogleAccountSignIn.cookies(from: complete + [optional])?.values["__Secure-1PSIDTS"] == "ts")
+        #expect(GoogleAccountSignIn.cookies(from: complete + [stale])?.values["__Secure-1PSIDTS"] == nil)
+    }
+
+    @Test func leavesOutThatCookieFromAPastedCommandToo() {
+        let command = "curl 'https://messages.google.com/web/config' -b 'OSID=o; SID=s; HSID=h; SSID=ss; APISID=a; SAPISID=sa; __Secure-1PSIDTS=ts'"
+
+        #expect(GoogleAccountSignIn.cookies(fromCurl: command)?.values["__Secure-1PSIDTS"] == nil)
+        #expect(GoogleAccountSignIn.cookies(fromCurl: command)?.values["SID"] == "s")
     }
 }
