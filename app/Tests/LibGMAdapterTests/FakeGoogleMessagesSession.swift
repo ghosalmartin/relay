@@ -23,8 +23,9 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
     func emit(_ event: LibGMEvent) { continuation.yield(event) }
     func stubPage(_ response: GM.ListMessagesResponse) { page.withLock { $0 = response } }
 
-    func startQRPairing() async throws(LibGMError) { record("startQRPairing") }
-    func refreshQRCode() async throws(LibGMError) { record("refreshQRCode") }
+    func startGoogleAccountPairing(cookies: [String: String]) async throws(LibGMError) {
+        record("googlePairing:" + cookies.keys.sorted().joined(separator: ","))
+    }
     func connect() async throws(LibGMError) { record("connect") }
     func disconnect() async { record("disconnect") }
     func unpair() async throws(LibGMError) { record("unpair") }

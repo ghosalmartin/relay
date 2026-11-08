@@ -1,4 +1,5 @@
 import AsyncBroadcast
+import Foundation
 import MessagingDomain
 import Synchronization
 
@@ -6,7 +7,7 @@ import Synchronization
 /// the `stub…` properties, and inspect what the code under test asked for in `calls`.
 public final class FakeMessagingClient: MessagingClient, Sendable {
     public enum Call: Equatable, Sendable {
-        case startPairing, refreshPairingCode, connect(SessionData), disconnect, unpair
+        case startPairing(AccountCookies), connect(SessionData), disconnect, unpair
         case messages(ConversationID, HistoryCursor?, limit: Int)
         case sendText(String, ConversationID)
         case markRead(ConversationID, MessageID)
@@ -16,7 +17,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
         var connectError: MessagingError?
         var sendError: MessagingError?
         var unpairError: MessagingError?
-        var refreshError: MessagingError?
+        var pairingError: MessagingError?
         var page = MessagePage(messages: [], olderCursor: nil)
         var eventsOnStartPairing: [MessagingEvent] = []
         var onStartPairing: (@Sendable () -> Void)?
@@ -38,7 +39,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     public func stubConnect(throwing error: MessagingError) { stubs.withLock { $0.connectError = error } }
     public func stubSend(throwing error: MessagingError) { stubs.withLock { $0.sendError = error } }
     public func stubUnpair(throwing error: MessagingError) { stubs.withLock { $0.unpairError = error } }
-    public func stubRefresh(throwing error: MessagingError?) { stubs.withLock { $0.refreshError = error } }
+    public func stubPairing(throwing error: MessagingError) { stubs.withLock { $0.pairingError = error } }
     public func stubPage(_ page: MessagePage) { stubs.withLock { $0.page = page } }
     public func stubEventsOnStartPairing(_ events: [MessagingEvent]) { stubs.withLock { $0.eventsOnStartPairing = events } }
 
@@ -58,15 +59,11 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
 
     public func events() -> AsyncStream<MessagingEvent> { broadcaster.subscribe() }
 
-    public func startPairing() async throws(MessagingError) {
-        record(.startPairing)
+    public func startPairing(with cookies: AccountCookies) async throws(MessagingError) {
+        record(.startPairing(cookies))
         stubs.withLock { $0.eventsOnStartPairing }.forEach(emit)
         onStartPairing?()
-    }
-
-    public func refreshPairingCode() async throws(MessagingError) {
-        record(.refreshPairingCode)
-        if let error = stubs.withLock({ $0.refreshError }) { throw error }
+        if let error = stubs.withLock({ $0.pairingError }) { throw error }
     }
 
     public func connect(using session: SessionData) async throws(MessagingError) {

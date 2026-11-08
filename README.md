@@ -3,8 +3,10 @@
 > [!WARNING]
 > **This is a vibecoded app.** It is a personal pet project, written almost entirely by an AI
 > coding agent (Claude Code) from prompts, and it has not been reviewed line by line by a human.
-> Expect bugs. It handles your private messages and the credentials for your phone link, so read
-> the code before you trust it with anything that matters. No support, no warranty, no promises.
+> Expect bugs. It handles your private messages, and pairing means signing in to your Google account
+> inside the app: the resulting cookies, which give access to that account, are stored in your
+> Keychain. Read the code before you trust it with anything that matters. No support, no warranty,
+> no promises.
 
 A native macOS client for Google Messages (Android Messages), written in SwiftUI on
 top of [libgm](https://github.com/mautrix/gmessages/tree/main/pkg/libgm).
@@ -23,7 +25,7 @@ Early and unfinished. There are no releases yet, so you have to build it yoursel
 - Package tests and UI tests pass, but the UI tests run against a scripted client.
 - **It has not been tried with a real phone yet**, so pairing, real messages and real
   notifications are all unproven.
-- Written so far: QR pairing, inbox, threads, sending text, and macOS notifications that open
+- Written so far: Google account pairing, inbox, threads, sending text, and macOS notifications that open
   their conversation when clicked.
 
 ## Layout
@@ -69,8 +71,10 @@ brew install xcodegen go
 cd app && xcodegen && open Relay.xcodeproj
 ```
 
-Run the **Relay** scheme and scan the QR code with Messages on your phone
-(profile picture → Device pairing → QR code scanner).
+Run the **Relay** scheme. Google has discontinued QR code pairing, so you sign in with the Google
+account on your Android phone instead: Relay opens Chrome (where passkeys work), you copy one
+request from DevTools as cURL and paste it back into Relay, then tap the matching emoji in
+Messages on the phone.
 
 ## Tests
 

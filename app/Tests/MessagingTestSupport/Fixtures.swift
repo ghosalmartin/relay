@@ -40,4 +40,5 @@ public enum Fixtures {
     }
 
     public static let session = SessionData(bytes: Data("session".utf8))
+    public static let accountCookies = AccountCookies(values: ["SID": "cookie"])
 }

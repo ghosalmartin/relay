@@ -13,7 +13,6 @@ public final class LibGMMessagingClient: MessagingClient {
     private struct State {
         var session: (any GoogleMessagesSession)?
         var pump: Task<Void, Never>?
-        var latestSession: Data?
         var conversations: [String: GM.Conversation] = [:]
     }
 
@@ -36,14 +35,9 @@ public final class LibGMMessagingClient: MessagingClient {
 
     // MARK: Pairing and connection
 
-    public func startPairing() async throws(MessagingError) {
+    public func startPairing(with cookies: AccountCookies) async throws(MessagingError) {
         let session = try replaceSession(savedSession: nil)
-        try await mapErrors { () throws(LibGMError) in try await session.startQRPairing() }
-    }
-
-    public func refreshPairingCode() async throws(MessagingError) {
-        let session = try currentSession()
-        try await mapErrors { () throws(LibGMError) in try await session.refreshQRCode() }
+        try await mapErrors { () throws(LibGMError) in try await session.startGoogleAccountPairing(cookies: cookies.values) }
     }
 
     public func connect(using session: SessionData) async throws(MessagingError) {
@@ -110,14 +104,13 @@ public final class LibGMMessagingClient: MessagingClient {
         }
         let pump = Task { [weak self] in
             for await event in session.events {
-                await self?.handle(event)
+                self?.publish(event)
             }
         }
         let previous = state.withLock { state in
             defer {
                 state.session = session
                 state.pump = pump
-                state.latestSession = savedSession
             }
             return (state.session, state.pump)
         }
@@ -140,13 +133,10 @@ public final class LibGMMessagingClient: MessagingClient {
         return session
     }
 
-    private func handle(_ event: LibGMEvent) async {
+    private func publish(_ event: LibGMEvent) {
         remember(event)
         if let mapped = EventMapper.event(from: event) {
             broadcaster.send(mapped)
-        }
-        if case .paired = event {
-            await reconnectAfterPairing()
         }
     }
 
@@ -154,22 +144,10 @@ public final class LibGMMessagingClient: MessagingClient {
         switch event {
         case .conversation(let conversation):
             state.withLock { $0.conversations[conversation.conversationID] = conversation }
-        case .sessionUpdated(let bytes):
-            state.withLock { $0.latestSession = bytes }
         case .loggedOut:
             state.withLock { $0.conversations.removeAll() }
         default:
             break
-        }
-    }
-
-    /// libgm needs a fresh client built from the new credentials once pairing completes.
-    private func reconnectAfterPairing() async {
-        guard let saved = state.withLock({ $0.latestSession }) else { return }
-        do {
-            try await connect(using: SessionData(bytes: saved))
-        } catch {
-            broadcaster.send(.connectionLost(reason: "Paired, but couldn't connect: \(error)"))
         }
     }
 

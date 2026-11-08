@@ -6,23 +6,21 @@ import MessagingTestSupport
 import Testing
 
 @Suite struct LibGMMessagingClientTests {
-    @Test func pairingThenReconnectsWithTheNewCredentials() async throws {
+    @Test func pairingUsesTheCookiesAndKeepsTheSameSession() async throws {
         let sessions = FakeSessionFactory()
         let client = LibGMMessagingClient(makeSession: sessions.factory)
         let events = client.events()
 
-        try await client.startPairing()
+        try await client.startPairing(with: Fixtures.accountCookies)
         let pairing = try #require(sessions.latest)
-        pairing.emit(.qrCode("qr"))
+        pairing.emit(.googleAccountEmoji("🦊"))
         pairing.emit(.sessionUpdated(Data("creds".utf8)))
         pairing.emit(.paired(phoneID: "phone"))
 
-        #expect(await events.first(3) == [.pairingCode("qr"), .sessionChanged(SessionData(bytes: Data("creds".utf8))), .paired])
-        #expect(await eventually { sessions.sessions.count == 2 })
-        let connected = try #require(sessions.latest)
-        #expect(connected.savedSession == Data("creds".utf8))
-        #expect(await eventually { connected.calls == ["connect"] })
-        #expect(pairing.calls.contains("close"))
+        #expect(await events.first(3) == [.pairingConfirmationEmoji("🦊"), .sessionChanged(SessionData(bytes: Data("creds".utf8))), .paired])
+        // libgm reconnects by itself after Google account pairing; a second session would fight it.
+        #expect(sessions.sessions.count == 1)
+        #expect(pairing.calls == ["googlePairing:SID"])
     }
 
     @Test func sendingUsesTheRememberedConversation() async throws {
@@ -99,6 +97,6 @@ import Testing
         try await client.unpair()
 
         #expect(sessions.latest?.calls.suffix(2) == ["unpair", "close"])
-        await #expect(throws: MessagingError.notPaired) { try await client.refreshPairingCode() }
+        await #expect(throws: MessagingError.notPaired) { try await client.markRead(ConversationID("c1"), upTo: MessageID("m1")) }
     }
 }

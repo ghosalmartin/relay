@@ -6,16 +6,18 @@ import MessagingTestSupport
 /// Launch-time wiring for UI tests: a scripted client instead of libgm, so the
 /// tests drive real screens without a phone or a network.
 ///
-/// Script: pairing shows a QR code, then pairs after a moment and the inbox fills
+/// Script: sign-in is skipped, pairing shows an emoji, then pairs after a moment and the inbox fills
 /// with two conversations. Sending echoes the message back as delivered.
 enum UITestLaunch {
     static let argument = "--ui-testing"
-    /// Leaves the QR code on screen instead of pairing, so a test can look at it without racing the script.
+    /// Leaves the emoji on screen instead of pairing, so a test can look at it without racing the script.
     static let holdPairingArgument = "--ui-testing-hold-pairing"
+
+    static let signIn = AccountCookies(values: ["SID": "ui-test"])
 
     static func makeClient() -> FakeMessagingClient {
         let client = FakeMessagingClient()
-        client.stubEventsOnStartPairing([.pairingCode("relay-ui-test-qr")])
+        client.stubEventsOnStartPairing([.pairingConfirmationEmoji("🦊")])
         client.onSendText = { [weak client] text, conversation in
             client?.emit(.messageReceived(Message(
                 id: MessageID(UUID().uuidString),
