@@ -40,6 +40,9 @@ Known limits:
   using Relay.
 - Relay doesn't appear under Device pairing on the phone. Neither did the Google Messages website
   when we checked, so unpair from inside Relay.
+- A message fails if the phone doesn't answer within about a minute. Beeper, which uses the same
+  library, [holds messages until the phone is back](https://help.beeper.com/chat-networks/google-messages-getting-started-guide).
+  Relay should do that too, and show that a message is waiting for your phone.
 
 ## Layout
 
