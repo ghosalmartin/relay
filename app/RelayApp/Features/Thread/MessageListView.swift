@@ -14,7 +14,8 @@ struct MessageListView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 2) {
+            // Not lazy: rows vary in height, and estimating them makes a bottom-anchored list jump.
+            VStack(spacing: 2) {
                 olderHistory
                 ForEach(items) { item in
                     switch item {
