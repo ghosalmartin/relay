@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 LIBGM_DIR="$(cd bridge && go list -m -f '{{.Dir}}' go.mau.fi/mautrix-gmessages)/pkg/libgm/gmproto"
 OUT=app/Sources/RelayKit/Generated
-rm -f "$OUT"/*.pb.swift
+mkdir -p "$OUT" && rm -f "$OUT"/*.pb.swift
 protoc -I "$LIBGM_DIR" -I "$LIBGM_DIR/vendor" \
   --swift_out="$OUT" --swift_opt=Visibility=Public \
   "$LIBGM_DIR"/*.proto
