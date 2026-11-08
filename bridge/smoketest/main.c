@@ -21,6 +21,7 @@ int main(void) {
     rc = gm_call(12345, 1, NULL, 0, &out, &n);
     printf("bad handle -> rc=%d err=%.*s\n", rc, (int)n, out); gm_free(out);
     gm_session_free(h);
+    gm_session_free(h); // double free of a handle is a no-op
     puts(h2 == 0 ? "PASS" : "FAIL");
     return h2 == 0 ? 0 : 1;
 }
