@@ -110,3 +110,9 @@ cd .. && ./scripts/gen-protos.sh         # needs protoc + protoc-gen-swift
 
 Generated protobuf sources are committed, so a normal build needs neither protoc nor
 a protobuf toolchain. Regenerate whenever libgm or swift-protobuf changes version.
+
+## Thanks
+
+Huge thanks to everyone behind [mautrix-gmessages](https://github.com/mautrix/gmessages) and
+libgm. They did the hard work of figuring out how Google Messages talks to the phone, and Relay
+would not exist without it.
