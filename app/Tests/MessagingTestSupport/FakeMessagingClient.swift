@@ -13,6 +13,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
         case markRead(ConversationID, MessageID)
         case attachmentData(Attachment)
         case avatars(Set<ParticipantID>)
+        case sendAttachment(OutgoingAttachment, caption: String?, ConversationID)
     }
 
     private struct Stubs {
@@ -23,6 +24,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
         var page = MessagePage(messages: [], olderCursor: nil)
         var attachment: Result<Data, MessagingError> = .success(Data())
         var avatars: Result<[ParticipantID: Data], MessagingError> = .success([:])
+        var sendAttachmentError: MessagingError?
         var eventsOnStartPairing: [MessagingEvent] = []
         var onStartPairing: (@Sendable () -> Void)?
         var onSendText: (@Sendable (String, ConversationID) -> Void)?
@@ -47,6 +49,7 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     public func stubPage(_ page: MessagePage) { stubs.withLock { $0.page = page } }
     public func stubAttachment(_ result: Result<Data, MessagingError>) { stubs.withLock { $0.attachment = result } }
     public func stubAvatars(_ result: Result<[ParticipantID: Data], MessagingError>) { stubs.withLock { $0.avatars = result } }
+    public func stubSendAttachmentError(_ error: MessagingError?) { stubs.withLock { $0.sendAttachmentError = error } }
     public func stubEventsOnStartPairing(_ events: [MessagingEvent]) { stubs.withLock { $0.eventsOnStartPairing = events } }
 
     /// Runs after `startPairing()`, e.g. to script a delayed `.paired` for UI tests.
@@ -102,6 +105,11 @@ public final class FakeMessagingClient: MessagingClient, Sendable {
     public func attachmentData(_ attachment: Attachment) async throws(MessagingError) -> Data {
         record(.attachmentData(attachment))
         return try stubs.withLock { $0.attachment }.get()
+    }
+
+    public func sendAttachment(_ attachment: OutgoingAttachment, caption: String?, to conversation: ConversationID) async throws(MessagingError) {
+        record(.sendAttachment(attachment, caption: caption, conversation))
+        if let error = stubs.withLock({ $0.sendAttachmentError }) { throw error }
     }
 
     public func avatars(for participants: Set<ParticipantID>) async throws(MessagingError) -> [ParticipantID: Data] {

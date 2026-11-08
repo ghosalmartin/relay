@@ -58,6 +58,11 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
         return thumbnails.withLock { $0 }
     }
 
+    func uploadMedia(data: Data, fileName: String, mimeType: String) async throws(LibGMError) -> GM.MediaContent {
+        record("upload:\(fileName):\(mimeType)")
+        return .with { $0.mediaID = "uploaded-\(fileName)" }
+    }
+
     func send(_ request: GM.SendMessageRequest) async throws(LibGMError) -> GM.SendMessageResponse {
         sent.withLock { $0.append(request) }
         return GM.SendMessageResponse()

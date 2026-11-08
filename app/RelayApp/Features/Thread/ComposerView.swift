@@ -1,35 +1,89 @@
+import AppKit
+import MessagingDomain
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The message field. Return sends; Option-Return adds a line, as in Messages.
 struct ComposerView: View {
     @Binding var draft: String
     let canSend: Bool
+    let attachment: OutgoingAttachment?
+    let attachmentSize: String?
     let onSend: () -> Void
+    let onFile: (OutgoingAttachment?) -> Void
+    let onRemoveFile: () -> Void
     @FocusState private var isFocused: Bool
+    @State private var isChoosingFile = false
+    @State private var pasteMonitor: Any?
+
+    private static let sendableTypes: [UTType] = [.image, .movie, .audio, .pdf]
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Text Message", text: $draft, axis: .vertical)
-                .textFieldStyle(.plain)
-                .lineLimit(1...6)
-                .focused($isFocused)
-                .onSubmit(send)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(.background, in: .capsule)
-                .overlay(Capsule().strokeBorder(.separator))
-                .accessibilityIdentifier("composer.field")
-            Button(action: send) {
-                Image(systemName: "arrow.up.circle.fill").font(.title)
+        VStack(spacing: 0) {
+            if let attachment {
+                PendingAttachmentView(attachment: attachment, sizeText: attachmentSize, onRemove: onRemoveFile)
             }
-            .buttonStyle(.borderless)
-            .disabled(!canSend)
-            .keyboardShortcut(.return, modifiers: .command)
-            .help("Send")
-            .accessibilityIdentifier("composer.send")
+            HStack(alignment: .bottom, spacing: 8) {
+                attachButton
+                messageField
+                sendButton
+            }
+            .padding(12)
         }
-        .padding(12)
-        .onAppear { isFocused = true }
+        .onAppear {
+            isFocused = true
+            pasteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown, handler: handleKey)
+        }
+        .onDisappear {
+            if let pasteMonitor { NSEvent.removeMonitor(pasteMonitor) }
+            pasteMonitor = nil
+        }
+        .fileImporter(isPresented: $isChoosingFile, allowedContentTypes: Self.sendableTypes) { result in
+            if case .success(let url) = result { onFile(OutgoingAttachmentReader.read(url)) }
+        }
+    }
+
+    private var attachButton: some View {
+        Button { isChoosingFile = true } label: {
+            Image(systemName: "paperclip").font(.title2)
+        }
+        .buttonStyle(.borderless)
+        .help("Attach a File")
+        .accessibilityLabel("Attach a file")
+        .accessibilityIdentifier("composer.attach")
+    }
+
+    private var messageField: some View {
+        TextField("Text Message", text: $draft, axis: .vertical)
+            .textFieldStyle(.plain)
+            .lineLimit(1...6)
+            .focused($isFocused)
+            .onSubmit(send)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(.background, in: .capsule)
+            .overlay(Capsule().strokeBorder(.separator))
+            .accessibilityIdentifier("composer.field")
+    }
+
+    private var sendButton: some View {
+        Button(action: send) {
+            Image(systemName: "arrow.up.circle.fill").font(.title)
+        }
+        .buttonStyle(.borderless)
+        .disabled(!canSend)
+        .keyboardShortcut(.return, modifiers: .command)
+        .help("Send")
+        .accessibilityIdentifier("composer.send")
+    }
+
+    /// A text field only accepts text pastes, so a copied picture has to be caught before it gets there.
+    private func handleKey(_ event: NSEvent) -> NSEvent? {
+        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+              event.charactersIgnoringModifiers == "v",
+              let pasted = OutgoingAttachmentReader.pasted(from: .general) else { return event }
+        onFile(pasted)
+        return nil
     }
 
     private func send() {

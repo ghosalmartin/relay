@@ -114,6 +114,40 @@ import Testing
         #expect(sessions.latest?.calls.last == "thumbnails:p1,p2")
     }
 
+    @Test func anAttachmentIsUploadedThenSentWithItsCaption() async throws {
+        let sessions = FakeSessionFactory()
+        let client = LibGMMessagingClient(makeSession: sessions.factory)
+        let events = client.events()
+        try await client.connect(using: Fixtures.session)
+        let session = try #require(sessions.latest)
+        session.emit(.conversation(ProtoFixtures.conversation("c1", outgoingID: "me-7")))
+        _ = await events.first(1)
+
+        try await client.sendAttachment(
+            OutgoingAttachment(data: Data("x".utf8), fileName: "a.png", mimeType: "image/png"),
+            caption: "Look",
+            to: ConversationID("c1")
+        )
+
+        #expect(session.calls.last == "upload:a.png:image/png")
+        let parts = try #require(session.sentRequests.first).messagePayload.messageInfo
+        #expect(parts.first?.mediaContent.mediaID == "uploaded-a.png")
+        #expect(parts.last?.messageContent.content == "Look")
+    }
+
+    @Test func anAttachmentForAnUnknownConversationIsNotUploaded() async throws {
+        let sessions = FakeSessionFactory()
+        let client = LibGMMessagingClient(makeSession: sessions.factory)
+        try await client.connect(using: Fixtures.session)
+
+        await #expect(throws: MessagingError.conversationNotFound(ConversationID("nope"))) {
+            try await client.sendAttachment(
+                OutgoingAttachment(data: Data(), fileName: "a.png", mimeType: "image/png"), caption: nil, to: ConversationID("nope")
+            )
+        }
+        #expect(sessions.latest?.calls == ["connect"])
+    }
+
     @Test func sendingToAnUnknownConversationFails() async throws {
         let sessions = FakeSessionFactory()
         let client = LibGMMessagingClient(makeSession: sessions.factory)

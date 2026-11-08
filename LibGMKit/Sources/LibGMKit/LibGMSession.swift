@@ -132,6 +132,11 @@ public final class LibGMSession: Sendable {
         return response.value
     }
 
+    /// Encrypts and uploads a file, returning the content to put in the message that sends it.
+    public func uploadMedia(data: Data, fileName: String, mimeType: String) async throws(LibGMError) -> GM.MediaContent {
+        try await call(.uploadMedia, json: BridgeRequest.UploadMedia(data: data, file_name: fileName, mime_type: mimeType))
+    }
+
     // MARK: Plumbing
 
     private func call<Response: SwiftProtobuf.Message>(_ method: BridgeMethod, protobuf request: some SwiftProtobuf.Message) async throws(LibGMError) -> Response {

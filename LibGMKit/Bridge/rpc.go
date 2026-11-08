@@ -30,6 +30,7 @@ const (
 	MethodGetConversation         Method = 11 // json conversationRequest -> Conversation
 	MethodUpdateConversation      Method = 12 // gmproto.UpdateConversationRequest -> response
 	MethodDownloadMedia           Method = 13 // json downloadMediaRequest -> wrapperspb.BytesValue
+	MethodUploadMedia             Method = 14 // json uploadMediaRequest -> MediaContent
 )
 
 // MessagesAPI is the slice of libgm.Client the RPC table needs.
@@ -48,6 +49,7 @@ type MessagesAPI interface {
 	GetConversation(ctx context.Context, conversationID string) (*gmproto.Conversation, error)
 	UpdateConversation(context.Context, *gmproto.UpdateConversationRequest) (*gmproto.UpdateConversationResponse, error)
 	DownloadMedia(ctx context.Context, mediaID string, key []byte) (io.ReadCloser, error)
+	UploadMedia(ctx context.Context, data []byte, fileName, mime string) (*gmproto.MediaContent, error)
 }
 
 // Bridge-only request shapes for calls whose libgm signature takes plain arguments.
@@ -78,6 +80,11 @@ type (
 	downloadMediaRequest struct {
 		MediaID string `json:"media_id"`
 		Key     []byte `json:"key"`
+	}
+	uploadMediaRequest struct {
+		Data     []byte `json:"data"`
+		FileName string `json:"file_name"`
+		MimeType string `json:"mime_type"`
 	}
 )
 
@@ -131,6 +138,9 @@ var handlers = map[Method]handler{
 			return nil, fmt.Errorf("read media: %w", err)
 		}
 		return wrapperspb.Bytes(data), nil
+	}),
+	MethodUploadMedia: jsonCall(func(ctx context.Context, api MessagesAPI, r uploadMediaRequest) (proto.Message, error) {
+		return api.UploadMedia(ctx, r.Data, r.FileName, r.MimeType)
 	}),
 }
 

@@ -91,6 +91,18 @@ public final class LibGMMessagingClient: MessagingClient {
         _ = try await mapErrors { () throws(LibGMError) in try await session.send(request) }
     }
 
+    public func sendAttachment(_ attachment: OutgoingAttachment, caption: String?, to conversation: ConversationID) async throws(MessagingError) {
+        let session = try currentSession()
+        guard let known = state.withLock({ $0.conversations[conversation.rawValue] }) else {
+            throw .conversationNotFound(conversation)
+        }
+        let media = try await mapErrors { () throws(LibGMError) in
+            try await session.uploadMedia(data: attachment.data, fileName: attachment.fileName, mimeType: attachment.mimeType)
+        }
+        let request = SendRequestBuilder.mediaMessage(media, caption: caption, in: known)
+        _ = try await mapErrors { () throws(LibGMError) in try await session.send(request) }
+    }
+
     public func markRead(_ conversation: ConversationID, upTo message: MessageID) async throws(MessagingError) {
         let session = try currentSession()
         try await mapErrors { () throws(LibGMError) in

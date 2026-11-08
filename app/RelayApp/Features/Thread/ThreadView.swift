@@ -19,8 +19,17 @@ struct ThreadView: View {
             ComposerView(
                 draft: Binding(get: { viewModel.state.draft }, set: { viewModel.send(.draftChanged($0)) }),
                 canSend: viewModel.state.canSend,
-                onSend: { viewModel.send(.sendTapped) }
+                attachment: viewModel.state.pendingAttachment,
+                attachmentSize: viewModel.state.pendingAttachmentSize,
+                onSend: { viewModel.send(.sendTapped) },
+                onFile: { viewModel.send(.fileRead($0)) },
+                onRemoveFile: { viewModel.send(.fileRemoved) }
             )
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            guard let url = urls.first else { return false }
+            viewModel.send(.fileRead(OutgoingAttachmentReader.read(url)))
+            return true
         }
         .navigationTitle(viewModel.state.title)
         .task { await viewModel.run() }

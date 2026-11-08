@@ -31,6 +31,18 @@ public enum ThreadReducer: Reducer {
             state.with(conversation: conversation)
         case .attachmentChanged(let id, let content):
             state.with(attachments: state.attachments.merging([id: content]) { _, updated in updated })
+        case .fileAdded where state.isSending:
+            state     // what's on its way out stays what the user sees until it has gone
+        case .fileAdded(let file) where file.data.count > OutgoingAttachment.maximumByteCount:
+            state.with(sendError: .some("That file is too big to send. The limit is 100 MB."))
+        case .fileAdded(let file):
+            state.with(pendingAttachment: .some(file))
+        case .fileRemoved where state.isSending:
+            state
+        case .fileRemoved:
+            state.with(pendingAttachment: .some(nil))
+        case .fileSent(let caption):
+            state.with(draft: state.draft == caption ? "" : state.draft, isSending: false, pendingAttachment: .some(nil))
         }
     }
 

@@ -46,6 +46,19 @@ import Testing
         #expect(call.contains(#""key":"a2V5""#))
     }
 
+    @Test func uploadsMediaWithBase64Data() async throws {
+        let bridge = FakeNativeBridge()
+        let uploaded = GM.MediaContent.with { $0.mediaID = "m1" }
+        bridge.respond(to: .uploadMedia, with: .success(try uploaded.serializedBytes()))
+
+        let media = try await LibGMSession(bridge: bridge).uploadMedia(data: Data("key".utf8), fileName: "a.png", mimeType: "image/png")
+
+        #expect(media.mediaID == "m1")
+        let call = try #require(bridge.calls.first)
+        #expect(call.contains(#""data":"a2V5""#))
+        #expect(call.contains(#""file_name":"a.png""#))
+    }
+
     @Test func decodesProtobufResponses() async throws {
         let bridge = FakeNativeBridge()
         let expected = GM.Conversation.with { $0.name = "Sam" }

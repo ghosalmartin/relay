@@ -145,7 +145,8 @@ private func bubble(_ id: String, in messages: [Message]) throws -> MessageBubbl
             markRead: MarkConversationRead(client: client),
             focus: ConversationFocus(),
             loadAttachment: LoadAttachment(client: client),
-            openFile: { opened.files.append(($0, $1)) }
+            openFile: { opened.files.append(($0, $1)) },
+            sendAttachment: SendAttachment(client: client)
         )
     }
 

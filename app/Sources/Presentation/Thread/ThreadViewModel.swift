@@ -14,6 +14,7 @@ public final class ThreadViewModel {
     private let focus: ConversationFocus
     private let loadAttachment: LoadAttachment
     private let openFile: @MainActor (Data, _ mimeType: String) -> Void
+    private let sendAttachment: SendAttachment
 
     /// - Parameter openFile: shows an attachment's contents in the app that handles its type.
     public init(
@@ -24,8 +25,10 @@ public final class ThreadViewModel {
         markRead: MarkConversationRead,
         focus: ConversationFocus,
         loadAttachment: LoadAttachment,
-        openFile: @escaping @MainActor (Data, _ mimeType: String) -> Void
+        openFile: @escaping @MainActor (Data, _ mimeType: String) -> Void,
+        sendAttachment: SendAttachment
     ) {
+        self.sendAttachment = sendAttachment
         self.state = ThreadState(conversation: conversation)
         self.loadHistory = loadHistory
         self.observeThread = observeThread
@@ -72,6 +75,10 @@ public final class ThreadViewModel {
             apply(.sendErrorDismissed)
         case .conversationChanged(let conversation):
             apply(.conversationChanged(conversation))
+        case .fileRead(let file):
+            apply(file.map(ThreadMutation.fileAdded) ?? .sendFailed("Couldn't read that file."))
+        case .fileRemoved:
+            apply(.fileRemoved)
         case .sendTapped:
             return Task { await sendDraft() }
         case .loadOlderTapped:
@@ -132,10 +139,16 @@ public final class ThreadViewModel {
     private func sendDraft() async {
         guard state.canSend else { return }
         let text = state.draft
+        let file = state.pendingAttachment
         apply(.sending)
         do {
-            try await sendText(text, to: conversationID)
-            apply(.sent(text))
+            if let file {
+                try await sendAttachment(file, caption: text, to: conversationID)
+                apply(.fileSent(caption: text))
+            } else {
+                try await sendText(text, to: conversationID)
+                apply(.sent(text))
+            }
         } catch {
             apply(.sendFailed(Self.describe(error)))
         }

@@ -39,6 +39,7 @@ targets:
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
+        com.apple.security.files.user-selected.read-only: true
   RelayUITests:
     type: bundle.ui-testing
     platform: macOS
