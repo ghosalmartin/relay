@@ -14,7 +14,10 @@ public final class LibGMMessagingClient: MessagingClient {
         var session: (any GoogleMessagesSession)?
         var pump: Task<Void, Never>?
         var conversations: [String: GM.Conversation] = [:]
+        var inboxLoad: Task<Void, Never>?
     }
+
+    private static let inboxSize: Int64 = 50
 
     private let makeSession: GoogleMessagesSessionFactory
     private let broadcaster = Broadcaster<MessagingEvent>()
@@ -104,16 +107,18 @@ public final class LibGMMessagingClient: MessagingClient {
         }
         let pump = Task { [weak self] in
             for await event in session.events {
-                self?.publish(event)
+                self?.handle(event, from: session)
             }
         }
         let previous = state.withLock { state in
             defer {
                 state.session = session
                 state.pump = pump
+                state.inboxLoad = nil
             }
-            return (state.session, state.pump)
+            return (state.session, state.pump, state.inboxLoad)
         }
+        previous.2?.cancel()
         previous.1?.cancel()
         previous.0?.close()
         return session
@@ -122,8 +127,9 @@ public final class LibGMMessagingClient: MessagingClient {
     private func endSession() {
         let previous = state.withLock { state in
             defer { state = State() }
-            return (state.session, state.pump)
+            return (state.session, state.pump, state.inboxLoad)
         }
+        previous.2?.cancel()
         previous.1?.cancel()
         previous.0?.close()
     }
@@ -133,10 +139,44 @@ public final class LibGMMessagingClient: MessagingClient {
         return session
     }
 
+    private func handle(_ event: LibGMEvent, from session: any GoogleMessagesSession) {
+        publish(event)
+        // libgm no longer announces a first sync. Its first settings message follows the phone
+        // accepting this session as active, so that's when asking for conversations gets an answer.
+        if case .settings = event {
+            startInboxLoadIfNeeded(from: session)
+        }
+    }
+
     private func publish(_ event: LibGMEvent) {
         remember(event)
         if let mapped = EventMapper.event(from: event) {
             broadcaster.send(mapped)
+        }
+    }
+
+    /// Runs apart from the event pump: the phone may be slow to answer, and word of that arrives as an event.
+    private func startInboxLoadIfNeeded(from session: any GoogleMessagesSession) {
+        state.withLock { state in
+            guard state.inboxLoad == nil else { return }
+            state.inboxLoad = Task { [weak self] in await self?.loadInbox(from: session) }
+        }
+    }
+
+    private func loadInbox(from session: any GoogleMessagesSession) async {
+        let request = GM.ListConversationsRequest.with {
+            $0.count = Self.inboxSize
+            $0.folder = .inbox
+        }
+        do {
+            let response = try await session.listConversations(request)
+            guard !Task.isCancelled else { return }
+            response.conversations.forEach { publish(.conversation($0)) }
+            publish(.initialSyncDone)
+        } catch {
+            guard !Task.isCancelled else { return }
+            state.withLock { $0.inboxLoad = nil }     // the phone's next settings message tries again
+            publish(.transientError("Couldn't load your conversations."))
         }
     }
 

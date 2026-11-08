@@ -10,6 +10,7 @@ public protocol GoogleMessagesSession: Sendable {
     func disconnect() async
     func unpair() async throws(LibGMError)
     func close()
+    func listConversations(_ request: GM.ListConversationsRequest) async throws(LibGMError) -> GM.ListConversationsResponse
     func fetchMessages(conversationID: String, count: Int64, before cursor: GM.Cursor?) async throws(LibGMError) -> GM.ListMessagesResponse
     func send(_ request: GM.SendMessageRequest) async throws(LibGMError) -> GM.SendMessageResponse
     func markRead(conversationID: String, messageID: String) async throws(LibGMError)

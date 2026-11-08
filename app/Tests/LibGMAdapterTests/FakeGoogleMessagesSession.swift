@@ -11,6 +11,7 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
     private let log = Mutex<[String]>([])
     private let sent = Mutex<[GM.SendMessageRequest]>([])
     private let page = Mutex(GM.ListMessagesResponse())
+    private let inbox = Mutex<Result<GM.ListConversationsResponse, LibGMError>>(.success(GM.ListConversationsResponse()))
 
     init(savedSession: Data?) {
         self.savedSession = savedSession
@@ -22,6 +23,7 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
 
     func emit(_ event: LibGMEvent) { continuation.yield(event) }
     func stubPage(_ response: GM.ListMessagesResponse) { page.withLock { $0 = response } }
+    func stubInbox(_ result: Result<GM.ListConversationsResponse, LibGMError>) { inbox.withLock { $0 = result } }
 
     func startGoogleAccountPairing(cookies: [String: String]) async throws(LibGMError) {
         record("googlePairing:" + cookies.keys.sorted().joined(separator: ","))
@@ -32,6 +34,11 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
     func close() {
         record("close")
         continuation.finish()
+    }
+
+    func listConversations(_ request: GM.ListConversationsRequest) async throws(LibGMError) -> GM.ListConversationsResponse {
+        record("list:\(request.folder):\(request.count)")
+        return try inbox.withLock { $0 }.get()
     }
 
     func fetchMessages(conversationID: String, count: Int64, before cursor: GM.Cursor?) async throws(LibGMError) -> GM.ListMessagesResponse {
