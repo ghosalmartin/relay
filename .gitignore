@@ -1,5 +1,5 @@
-bridge/build/
 app/Relay.xcodeproj/
-app/Sources/RelayKit/Generated/*.pb.swift
 .DS_Store
 xcuserdata/
+.build/
+LibGMKit/Bridge/build/
