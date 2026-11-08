@@ -33,6 +33,7 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: Relay
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.social-networking
         ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
       path: RelayApp/Relay.entitlements
       properties:
