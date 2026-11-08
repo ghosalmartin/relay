@@ -1,3 +1,4 @@
+import MessagingDomain
 import Presentation
 import SwiftUI
 
@@ -7,6 +8,9 @@ struct MessageListView: View {
     let canLoadOlder: Bool
     let isLoadingOlder: Bool
     let onLoadOlder: () -> Void
+    let attachments: [String: AttachmentContent]
+    let onAttachmentAppear: (Attachment) -> Void
+    let onAttachmentTap: (Attachment) -> Void
 
     var body: some View {
         ScrollView {
@@ -17,7 +21,12 @@ struct MessageListView: View {
                     case .daySeparator(let day):
                         DaySeparatorView(day: day)
                     case .bubble(let bubble):
-                        MessageBubbleView(bubble: bubble)
+                        MessageBubbleView(
+                            bubble: bubble,
+                            attachments: attachments,
+                            onAttachmentAppear: onAttachmentAppear,
+                            onAttachmentTap: onAttachmentTap
+                        )
                     }
                 }
             }

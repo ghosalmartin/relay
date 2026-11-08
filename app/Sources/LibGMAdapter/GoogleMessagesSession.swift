@@ -14,6 +14,7 @@ public protocol GoogleMessagesSession: Sendable {
     func fetchMessages(conversationID: String, count: Int64, before cursor: GM.Cursor?) async throws(LibGMError) -> GM.ListMessagesResponse
     func send(_ request: GM.SendMessageRequest) async throws(LibGMError) -> GM.SendMessageResponse
     func markRead(conversationID: String, messageID: String) async throws(LibGMError)
+    func downloadMedia(id: String, key: Data) async throws(LibGMError) -> Data
 }
 
 extension LibGMSession: GoogleMessagesSession {}

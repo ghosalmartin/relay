@@ -122,7 +122,9 @@ final class AppEnvironment {
             observeThread: ObserveThread(client: client),
             sendText: SendText(client: client),
             markRead: MarkConversationRead(client: client),
-            focus: focus
+            focus: focus,
+            loadAttachment: LoadAttachment(client: client),
+            openFile: { AttachmentFileOpener.open($0, mimeType: $1) }
         )
     }
 }

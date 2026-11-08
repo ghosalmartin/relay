@@ -29,6 +29,8 @@ public enum ThreadReducer: Reducer {
             state.with(sendError: .some(nil))
         case .conversationChanged(let conversation):
             state.with(conversation: conversation)
+        case .attachmentChanged(let id, let content):
+            state.with(attachments: state.attachments.merging([id: content]) { _, updated in updated })
         }
     }
 

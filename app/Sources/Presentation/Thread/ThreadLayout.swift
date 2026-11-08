@@ -27,6 +27,13 @@ public struct MessageBubble: Identifiable, Equatable, Sendable {
     public let endsBurst: Bool
     /// Delivery status, only on my most recent message.
     public let status: DeliveryStatus?
+    public let reactions: [Reaction]
+    /// What this message is answering, when it's a reply.
+    public let replyPreview: String?
+    /// Shown instead of the content when there's nothing to draw.
+    public let placeholder: String?
+
+    public var linkedText: AttributedString { LinkedText.attributed(text) }
 }
 
 /// Turns a flat message list into day separators and grouped bubbles.
@@ -36,6 +43,7 @@ public enum ThreadLayout {
 
     public static func items(for messages: [Message], in conversation: Conversation, calendar: Calendar) -> [ThreadItem] {
         let newestMine = messages.last(where: \.isFromMe)?.id
+        let known = Dictionary(messages.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
         return messages.enumerated().flatMap { index, message -> [ThreadItem] in
             let previous = index > 0 ? messages[index - 1] : nil
             let following = index + 1 < messages.count ? messages[index + 1] : nil
@@ -50,7 +58,10 @@ public enum ThreadLayout {
                 senderName: startsBurst(message, after: previous, calendar: calendar)
                     ? senderName(of: message, in: conversation) : nil,
                 endsBurst: !continuesBurst(message, with: following),
-                status: message.id == newestMine ? message.status : nil
+                status: message.id == newestMine ? message.status : nil,
+                reactions: message.reactions,
+                replyPreview: replyPreview(of: message, among: known),
+                placeholder: placeholder(for: message)
             ))]
         }
     }
@@ -70,6 +81,17 @@ public enum ThreadLayout {
     private static func senderName(of message: Message, in conversation: Conversation) -> String? {
         guard conversation.isGroup, case .participant(let id) = message.sender else { return nil }
         return conversation.participants.first { $0.id == id }?.displayName
+    }
+
+    private static func replyPreview(of message: Message, among known: [MessageID: Message]) -> String? {
+        guard let id = message.replyTo else { return nil }
+        guard let original = known[id] else { return "Replying to an earlier message" }
+        return original.text.isEmpty ? "Attachment" : original.text
+    }
+
+    private static func placeholder(for message: Message) -> String? {
+        if message.status == .deleted { return "This message was deleted." }
+        return message.parts.isEmpty ? "This kind of message isn't supported yet." : nil
     }
 
     private static func attachment(_ part: MessagePart) -> Attachment? {

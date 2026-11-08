@@ -77,6 +77,119 @@ import Testing
 
         #expect(part == .attachment(Attachment(id: "media-1", fileName: "photo.jpg", mimeType: "image/jpeg", byteCount: 2048)))
     }
+
+    @Test func mediaKeepsTheKeyNeededToDownloadIt() {
+        let info = GM.MessageInfo.with {
+            $0.mediaContent.mediaID = "media-1"
+            $0.mediaContent.decryptionKey = Data("secret".utf8)
+        }
+
+        guard case .attachment(let attachment) = MessageMapper.part(from: info) else {
+            Issue.record("expected an attachment")
+            return
+        }
+        #expect(attachment.accessKey == Data("secret".utf8))
+    }
+
+    @Test func withoutAFullFileTheThumbnailIsUsed() {
+        let info = GM.MessageInfo.with {
+            $0.mediaContent.thumbnailMediaID = "thumb"
+            $0.mediaContent.thumbnailDecryptionKey = Data("thumb-key".utf8)
+            $0.mediaContent.mimeType = "image/jpeg"
+        }
+
+        #expect(MessageMapper.part(from: info) == .attachment(Attachment(
+            id: "thumb", fileName: "", mimeType: "image/jpeg", byteCount: nil, accessKey: Data("thumb-key".utf8)
+        )))
+    }
+
+    @Test func thePictureEmbeddedInTheMessageIsTheLastResort() {
+        let info = GM.MessageInfo.with {
+            $0.mediaContent.mediaData = Data("embedded".utf8)
+            $0.mediaContent.mimeType = "image/jpeg"
+        }
+
+        guard case .attachment(let attachment) = MessageMapper.part(from: info) else {
+            Issue.record("expected an attachment")
+            return
+        }
+        #expect(attachment.inlineData == Data("embedded".utf8))
+        #expect(!attachment.id.isEmpty)     // state is keyed by ID, so an empty one would collide
+    }
+
+    @Test func aFullFileBeatsItsThumbnailAndEmbeddedCopy() {
+        let info = GM.MessageInfo.with {
+            $0.mediaContent.mediaID = "full"
+            $0.mediaContent.decryptionKey = Data("key".utf8)
+            $0.mediaContent.thumbnailMediaID = "thumb"
+            $0.mediaContent.mediaData = Data("embedded".utf8)
+        }
+
+        guard case .attachment(let attachment) = MessageMapper.part(from: info) else {
+            Issue.record("expected an attachment")
+            return
+        }
+        #expect(attachment.id == "full")
+        #expect(attachment.accessKey == Data("key".utf8))
+        #expect(attachment.inlineData == nil)
+    }
+
+    @Test func aLocationWithADescriptionBecomesText() {
+        let info = GM.MessageInfo.with { $0.locationContent.messageContent.content = "Pub https://maps.example" }
+
+        #expect(MessageMapper.part(from: info) == .text("Pub https://maps.example"))
+    }
+
+    @Test func aLocationWithOnlyAMapBecomesAnAttachment() {
+        let info = GM.MessageInfo.with {
+            $0.locationContent.mediaContent.mediaID = "map"
+            $0.locationContent.mediaContent.mimeType = "image/png"
+        }
+
+        #expect(MessageMapper.part(from: info) == .attachment(Attachment(id: "map", fileName: "", mimeType: "image/png", byteCount: nil)))
+    }
+
+    @Test func anEmptyLocationHasNoPart() {
+        let info = GM.MessageInfo.with { $0.locationContent = GM.LocationContent() }
+
+        #expect(MessageMapper.part(from: info) == nil)
+    }
+
+    @Test func aStandardReactionIsCountedUnderItsEmoji() {
+        let entry = GM.ReactionEntry.with {
+            $0.data.type = .like
+            $0.participantIds = ["p1", "p2"]
+        }
+
+        #expect(ReactionMapper.reaction(from: entry) == Reaction(emoji: "👍", count: 2))
+    }
+
+    @Test func aCustomReactionUsesTheEmojiItCarries() {
+        let entry = GM.ReactionEntry.with {
+            $0.data.type = .custom
+            $0.data.unicode = "🦊"
+            $0.participantIds = ["p1"]
+        }
+
+        #expect(ReactionMapper.reaction(from: entry) == Reaction(emoji: "🦊", count: 1))
+    }
+
+    @Test func aReactionNobodyHoldsIsDropped() {
+        let entry = GM.ReactionEntry.with { $0.data.type = .like }
+
+        #expect(ReactionMapper.reaction(from: entry) == nil)
+    }
+
+    @Test func aReplyPointsAtTheOriginalMessage() throws {
+        let proto = ProtoFixtures.message("m2", status: .incomingComplete)
+        let reply = GM.Message.with {
+            $0 = proto
+            $0.replyMessage.messageID = "m1"
+        }
+
+        #expect(try #require(MessageMapper.message(from: reply)).replyTo == MessageID("m1"))
+        #expect(try #require(MessageMapper.message(from: proto)).replyTo == nil)
+    }
 }
 
 @Suite struct CursorCodecTests {

@@ -2,6 +2,7 @@ import AsyncBroadcast
 import Foundation
 import LibGMKit
 import MessagingDomain
+import OSLog
 import Synchronization
 
 /// `MessagingClient` backed by libgm. The only type in the app that knows libgm exists.
@@ -18,6 +19,7 @@ public final class LibGMMessagingClient: MessagingClient {
     }
 
     private static let inboxSize: Int64 = 50
+    private static let log = Logger(subsystem: "dev.featurenotabug.Relay", category: "attachments")
 
     private let makeSession: GoogleMessagesSessionFactory
     private let broadcaster = Broadcaster<MessagingEvent>()
@@ -92,6 +94,19 @@ public final class LibGMMessagingClient: MessagingClient {
         let session = try currentSession()
         try await mapErrors { () throws(LibGMError) in
             try await session.markRead(conversationID: conversation.rawValue, messageID: message.rawValue)
+        }
+    }
+
+    public func attachmentData(_ attachment: Attachment) async throws(MessagingError) -> Data {
+        if let inline = attachment.inlineData { return inline }
+        let session = try currentSession()
+        do {
+            return try await mapErrors { () throws(LibGMError) in
+                try await session.downloadMedia(id: attachment.id, key: attachment.accessKey)
+            }
+        } catch {
+            Self.log.error("Attachment download failed (\(attachment.mimeType, privacy: .public)): \(String(describing: error), privacy: .public)")
+            throw error
         }
     }
 

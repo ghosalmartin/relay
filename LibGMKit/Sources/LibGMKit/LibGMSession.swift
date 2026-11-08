@@ -126,6 +126,12 @@ public final class LibGMSession: Sendable {
         try await call(.fullSizeImage, json: BridgeRequest.FullSizeImage(message_id: messageID, action_message_id: actionMessageID))
     }
 
+    /// Downloads and decrypts a message attachment.
+    public func downloadMedia(id: String, key: Data) async throws(LibGMError) -> Data {
+        let response: Google_Protobuf_BytesValue = try await call(.downloadMedia, json: BridgeRequest.DownloadMedia(media_id: id, key: key))
+        return response.value
+    }
+
     // MARK: Plumbing
 
     private func call<Response: SwiftProtobuf.Message>(_ method: BridgeMethod, protobuf request: some SwiftProtobuf.Message) async throws(LibGMError) -> Response {

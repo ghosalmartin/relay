@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	"go.mau.fi/mautrix-gmessages/pkg/libgm/gmproto"
 )
@@ -62,6 +65,32 @@ func TestDispatch_PropagatesLibraryErrors(t *testing.T) {
 	}
 }
 
+func TestDispatch_DownloadMediaReturnsTheDecryptedBytes(t *testing.T) {
+	api := &fakeAPI{media: []byte("picture")}
+
+	got := mustDispatch(t, api, MethodDownloadMedia, downloadMediaRequest{MediaID: "m1", Key: []byte("key")})
+
+	var response wrapperspb.BytesValue
+	if err := proto.Unmarshal(got, &response); err != nil {
+		t.Fatal(err)
+	}
+	if string(response.GetValue()) != "picture" {
+		t.Fatalf("bytes = %q, want picture", response.GetValue())
+	}
+	if api.downloaded != "m1/key" {
+		t.Fatalf("downloaded %q, want m1/key", api.downloaded)
+	}
+}
+
+func TestDispatch_DownloadMediaReportsFailure(t *testing.T) {
+	api := &fakeAPI{err: errors.New("gone")}
+
+	body, _ := json.Marshal(downloadMediaRequest{MediaID: "m1"})
+	if _, err := Dispatch(context.Background(), api, MethodDownloadMedia, body); !errors.Is(err, api.err) {
+		t.Fatalf("err = %v, want it to wrap gone", err)
+	}
+}
+
 func TestDispatch_RejectsUnknownMethod(t *testing.T) {
 	if _, err := Dispatch(context.Background(), &fakeAPI{}, Method(999), nil); err == nil {
 		t.Fatal("want error for unknown method")
@@ -75,7 +104,7 @@ func TestDispatch_RejectsMalformedRequest(t *testing.T) {
 }
 
 func TestEveryMethodHasAHandler(t *testing.T) {
-	for m := MethodListConversations; m <= MethodUpdateConversation; m++ {
+	for m := MethodListConversations; m <= MethodDownloadMedia; m++ {
 		if _, ok := handlers[m]; !ok {
 			t.Errorf("method %d has no handler", m)
 		}
@@ -111,6 +140,16 @@ type fakeAPI struct {
 	sentConversationID string
 	fetchCursor        *gmproto.Cursor
 	markedRead         string
+	media              []byte
+	downloaded         string
+}
+
+func (f *fakeAPI) DownloadMedia(_ context.Context, mediaID string, key []byte) (io.ReadCloser, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	f.downloaded = mediaID + "/" + string(key)
+	return io.NopCloser(bytes.NewReader(f.media)), nil
 }
 
 func (f *fakeAPI) ListConversations(context.Context, *gmproto.ListConversationsRequest) (*gmproto.ListConversationsResponse, error) {

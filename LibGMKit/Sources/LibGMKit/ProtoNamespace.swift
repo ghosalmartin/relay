@@ -6,6 +6,10 @@ public enum GM {
     public typealias ConversationType = Conversations_ConversationType
     public typealias Message = Conversations_Message
     public typealias MessageInfo = Conversations_MessageInfo
+    public typealias MediaContent = Conversations_MediaContent
+    public typealias LocationContent = Conversations_LocationContent
+    public typealias ReactionEntry = Conversations_ReactionEntry
+    public typealias ReactionData = Conversations_ReactionData
     public typealias MessageStatusType = Conversations_MessageStatusType
     public typealias MessagePayload = Client_MessagePayload
     public typealias Participant = Conversations_Participant

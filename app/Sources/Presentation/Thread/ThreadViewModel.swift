@@ -1,3 +1,4 @@
+import Foundation
 import MessagingApplication
 import MessagingDomain
 import Observation
@@ -11,14 +12,19 @@ public final class ThreadViewModel {
     private let sendText: SendText
     private let markRead: MarkConversationRead
     private let focus: ConversationFocus
+    private let loadAttachment: LoadAttachment
+    private let openFile: @MainActor (Data, _ mimeType: String) -> Void
 
+    /// - Parameter openFile: shows an attachment's contents in the app that handles its type.
     public init(
         conversation: Conversation,
         loadHistory: LoadThreadHistory,
         observeThread: ObserveThread,
         sendText: SendText,
         markRead: MarkConversationRead,
-        focus: ConversationFocus
+        focus: ConversationFocus,
+        loadAttachment: LoadAttachment,
+        openFile: @escaping @MainActor (Data, _ mimeType: String) -> Void
     ) {
         self.state = ThreadState(conversation: conversation)
         self.loadHistory = loadHistory
@@ -26,6 +32,8 @@ public final class ThreadViewModel {
         self.sendText = sendText
         self.markRead = markRead
         self.focus = focus
+        self.loadAttachment = loadAttachment
+        self.openFile = openFile
     }
 
     private var conversationID: ConversationID { state.conversation.id }
@@ -70,8 +78,35 @@ public final class ThreadViewModel {
             return Task { await loadOlder() }
         case .retryHistoryTapped:
             return Task { await loadLatest() }
+        case .attachmentAppeared(let attachment):
+            return Task { _ = await contents(of: attachment) }
+        case .attachmentTapped(let attachment):
+            return Task { await open(attachment) }
         }
         return Task {}
+    }
+
+    /// Nil if it failed, or if another caller is already fetching it.
+    private func contents(of attachment: Attachment) async -> Data? {
+        switch state.attachments[attachment.id] {
+        case .loaded(let data): return data
+        case .loading: return nil
+        case .failed, nil: break
+        }
+        apply(.attachmentChanged(id: attachment.id, .loading))
+        do {
+            let data = try await loadAttachment(attachment)
+            apply(.attachmentChanged(id: attachment.id, .loaded(data)))
+            return data
+        } catch {
+            apply(.attachmentChanged(id: attachment.id, .failed))
+            return nil
+        }
+    }
+
+    private func open(_ attachment: Attachment) async {
+        guard attachment.canOpen, let data = await contents(of: attachment) else { return }
+        openFile(data, attachment.mimeType)
     }
 
     private func loadLatest() async {

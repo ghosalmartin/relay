@@ -1,3 +1,5 @@
+import Foundation
+
 /// JSON request bodies for RPCs whose libgm signature takes plain arguments rather
 /// than a protobuf message. Field names mirror the structs in Bridge/rpc.go.
 enum BridgeRequest {
@@ -28,5 +30,10 @@ enum BridgeRequest {
 
     struct Conversation: Encodable {
         let conversation_id: String
+    }
+
+    struct DownloadMedia: Encodable {
+        let media_id: String
+        let key: Data     // JSONEncoder writes base64, which is what Go expects for []byte
     }
 }
