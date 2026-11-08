@@ -26,6 +26,8 @@ public struct ThreadState: Equatable, Sendable {
     public let sendError: String?
     /// By attachment ID. Absent until something asks for that attachment.
     public let attachments: [String: AttachmentContent]
+    /// The file waiting in the composer to go out with the next send.
+    public let pendingAttachment: OutgoingAttachment?
 
     public init(
         conversation: Conversation,
@@ -36,8 +38,10 @@ public struct ThreadState: Equatable, Sendable {
         draft: String = "",
         isSending: Bool = false,
         sendError: String? = nil,
-        attachments: [String: AttachmentContent] = [:]
+        attachments: [String: AttachmentContent] = [:],
+        pendingAttachment: OutgoingAttachment? = nil
     ) {
+        self.pendingAttachment = pendingAttachment
         self.conversation = conversation
         self.messages = messages
         self.olderCursor = olderCursor
@@ -59,7 +63,8 @@ public struct ThreadState: Equatable, Sendable {
         draft: String? = nil,
         isSending: Bool? = nil,
         sendError: String?? = nil,
-        attachments: [String: AttachmentContent]? = nil
+        attachments: [String: AttachmentContent]? = nil,
+        pendingAttachment: OutgoingAttachment?? = nil
     ) -> ThreadState {
         ThreadState(
             conversation: conversation ?? self.conversation,
@@ -70,12 +75,16 @@ public struct ThreadState: Equatable, Sendable {
             draft: draft ?? self.draft,
             isSending: isSending ?? self.isSending,
             sendError: sendError ?? self.sendError,
-            attachments: attachments ?? self.attachments
+            attachments: attachments ?? self.attachments,
+            pendingAttachment: pendingAttachment ?? self.pendingAttachment
         )
     }
 
     public var title: String { conversation.title }
-    public var canSend: Bool { !isSending && SendText.sendableText(from: draft) != nil }
+    public var canSend: Bool { !isSending && (pendingAttachment != nil || SendText.sendableText(from: draft) != nil) }
+    public var pendingAttachmentSize: String? {
+        pendingAttachment.map { ByteCountFormatter.string(fromByteCount: Int64($0.data.count), countStyle: .file) }
+    }
     public var canLoadOlder: Bool { olderCursor != nil && !isLoadingOlder }
     public var newestIncomingMessage: Message? { messages.last { !$0.isFromMe } }
 
@@ -95,6 +104,9 @@ public enum ThreadIntent: Equatable, Sendable {
     /// A picture scrolled into view and needs its contents.
     case attachmentAppeared(Attachment)
     case attachmentTapped(Attachment)
+    /// A file was picked, dropped or pasted. Nil if it couldn't be read.
+    case fileRead(OutgoingAttachment?)
+    case fileRemoved
 }
 
 public enum ThreadMutation: Equatable, Sendable {
@@ -113,4 +125,8 @@ public enum ThreadMutation: Equatable, Sendable {
     case sendErrorDismissed
     case conversationChanged(Conversation)
     case attachmentChanged(id: String, AttachmentContent)
+    case fileAdded(OutgoingAttachment)
+    case fileRemoved
+    /// Carries the caption that went out, because the draft may have moved on while it was sending.
+    case fileSent(caption: String)
 }

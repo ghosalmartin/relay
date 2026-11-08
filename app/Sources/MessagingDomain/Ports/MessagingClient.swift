@@ -24,6 +24,8 @@ public protocol MessagingClient: Sendable {
 
     func messages(in conversation: ConversationID, before cursor: HistoryCursor?, limit: Int) async throws(MessagingError) -> MessagePage
     func sendText(_ text: String, to conversation: ConversationID) async throws(MessagingError)
+    /// Uploads a file and sends it, with any caption as part of the same message.
+    func sendAttachment(_ attachment: OutgoingAttachment, caption: String?, to conversation: ConversationID) async throws(MessagingError)
     func markRead(_ conversation: ConversationID, upTo message: MessageID) async throws(MessagingError)
     /// The contents of a file attached to a message.
     func attachmentData(_ attachment: Attachment) async throws(MessagingError) -> Data

@@ -32,6 +32,12 @@ enum BridgeRequest {
         let conversation_id: String
     }
 
+    struct UploadMedia: Encodable {
+        let data: Data
+        let file_name: String
+        let mime_type: String
+    }
+
     struct DownloadMedia: Encodable {
         let media_id: String
         let key: Data     // JSONEncoder writes base64, which is what Go expects for []byte

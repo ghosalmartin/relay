@@ -222,7 +222,8 @@ private func at(_ minutes: Double, day: Double = 0) -> Date {
             markRead: MarkConversationRead(client: client),
             focus: focus ?? visibleFocus(),
             loadAttachment: LoadAttachment(client: client),
-            openFile: { _, _ in }
+            openFile: { _, _ in },
+            sendAttachment: SendAttachment(client: client)
         )
     }
 }

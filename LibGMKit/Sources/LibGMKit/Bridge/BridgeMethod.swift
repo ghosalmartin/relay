@@ -14,4 +14,5 @@ enum BridgeMethod: Int32, CaseIterable, Sendable {
     case getConversation = 11
     case updateConversation = 12
     case downloadMedia = 13
+    case uploadMedia = 14
 }

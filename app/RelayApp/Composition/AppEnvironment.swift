@@ -125,7 +125,8 @@ final class AppEnvironment {
             markRead: MarkConversationRead(client: client),
             focus: focus,
             loadAttachment: LoadAttachment(client: client),
-            openFile: { AttachmentFileOpener.open($0, mimeType: $1) }
+            openFile: { AttachmentFileOpener.open($0, mimeType: $1) },
+            sendAttachment: SendAttachment(client: client)
         )
     }
 }

@@ -91,6 +91,23 @@ func TestDispatch_DownloadMediaReportsFailure(t *testing.T) {
 	}
 }
 
+func TestDispatch_UploadMediaReturnsTheUploadedContent(t *testing.T) {
+	api := &fakeAPI{}
+
+	got := mustDispatch(t, api, MethodUploadMedia, uploadMediaRequest{Data: []byte("picture"), FileName: "a.png", MimeType: "image/png"})
+
+	var response gmproto.MediaContent
+	if err := proto.Unmarshal(got, &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.GetMediaID() != "uploaded" {
+		t.Fatalf("media ID = %q, want uploaded", response.GetMediaID())
+	}
+	if api.uploaded != "picture/a.png/image/png" {
+		t.Fatalf("uploaded %q", api.uploaded)
+	}
+}
+
 func TestDispatch_RejectsUnknownMethod(t *testing.T) {
 	if _, err := Dispatch(context.Background(), &fakeAPI{}, Method(999), nil); err == nil {
 		t.Fatal("want error for unknown method")
@@ -104,7 +121,7 @@ func TestDispatch_RejectsMalformedRequest(t *testing.T) {
 }
 
 func TestEveryMethodHasAHandler(t *testing.T) {
-	for m := MethodListConversations; m <= MethodDownloadMedia; m++ {
+	for m := MethodListConversations; m <= MethodUploadMedia; m++ {
 		if _, ok := handlers[m]; !ok {
 			t.Errorf("method %d has no handler", m)
 		}
@@ -142,6 +159,12 @@ type fakeAPI struct {
 	markedRead         string
 	media              []byte
 	downloaded         string
+	uploaded           string
+}
+
+func (f *fakeAPI) UploadMedia(_ context.Context, data []byte, fileName, mime string) (*gmproto.MediaContent, error) {
+	f.uploaded = string(data) + "/" + fileName + "/" + mime
+	return &gmproto.MediaContent{MediaID: "uploaded"}, f.err
 }
 
 func (f *fakeAPI) DownloadMedia(_ context.Context, mediaID string, key []byte) (io.ReadCloser, error) {
