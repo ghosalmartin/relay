@@ -15,8 +15,9 @@ enum ErrorMapper {
     private static func bridgeError(_ reason: String) -> MessagingError {
         let lowered = reason.lowercased()
         if let pairing = pairingFailure(lowered) { return .backend(pairing) }
+        if lowered.contains("client init timed out") { return .phoneMissedPairing }
         if lowered.contains("not logged in") || lowered.contains("unpaired") { return .notPaired }
-        if lowered.contains("timeout") || lowered.contains("not responding") { return .phoneUnreachable }
+        if lowered.contains("timeout") || lowered.contains("not responding") || lowered.contains("did not respond") { return .phoneUnreachable }
         return .backend(reason)
     }
 
@@ -24,9 +25,6 @@ enum ErrorMapper {
     private static func pairingFailure(_ lowered: String) -> String? {
         if lowered.contains("hasn't been seen recently") {
             return "Messages on your phone hasn't connected to this Google account recently. Open Messages, tap your profile picture, then Device pairing, and try again."
-        }
-        if lowered.contains("client init timed out") {
-            return "Your phone didn't answer. Open Messages on your phone, check Device pairing is on for this Google account, keep the app open, and try again."
         }
         if lowered.contains("no devices found") {
             return "No phone found for this Google account. Sign in with the account used in Messages on your phone."

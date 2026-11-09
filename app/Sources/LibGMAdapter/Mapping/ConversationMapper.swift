@@ -3,6 +3,11 @@ import MessagingDomain
 
 /// Google Messages conversation → domain `Conversation`.
 enum ConversationMapper {
+    /// Spelled out as what leaves the inbox, so a status added later doesn't make conversations vanish.
+    static func belongsInInbox(_ proto: GM.Conversation) -> Bool {
+        ![.archived, .deleted, .keepArchived, .spamFolder, .blockedFolder, .crossCountryFolder, .trashFolder].contains(proto.status)
+    }
+
     static func conversation(from proto: GM.Conversation) -> Conversation {
         Conversation(
             id: ConversationID(proto.conversationID),

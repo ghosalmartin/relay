@@ -52,6 +52,18 @@ final class RelayUITests: XCTestCase {
         XCTAssertEqual(field.value as? String, "")
     }
 
+    func testChoosingAContactOpensTheirConversation() {
+        launch()
+        XCTAssertTrue(conversation("sam").waitForExistence(timeout: 8))
+
+        app.buttons["inbox.compose"].click()
+        let contact = app.descendants(matching: .any)["contact.+447700900001"]
+        XCTAssertTrue(contact.waitForExistence(timeout: 5))
+        contact.click()
+
+        XCTAssertTrue(app.textFields["composer.field"].waitForExistence(timeout: 5))
+    }
+
     func testSendButtonIsDisabledForABlankMessage() {
         launch()
         XCTAssertTrue(conversation("sam").waitForExistence(timeout: 8))

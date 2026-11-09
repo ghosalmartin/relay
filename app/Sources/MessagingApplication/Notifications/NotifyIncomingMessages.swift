@@ -6,12 +6,14 @@ public struct NotifyIncomingMessages: Sendable {
     private let events: AsyncStream<MessagingEvent>
     private let presenter: any NotificationPresenter
     private let focus: ConversationFocus
+    private let avatars: AvatarBook
 
     /// Subscribes straight away, so build this before anything can connect.
-    public init(client: any MessagingClient, presenter: any NotificationPresenter, focus: ConversationFocus) {
+    public init(client: any MessagingClient, presenter: any NotificationPresenter, focus: ConversationFocus, avatars: AvatarBook = AvatarBook()) {
         events = client.events()
         self.presenter = presenter
         self.focus = focus
+        self.avatars = avatars
     }
 
     public func callAsFunction() async {
@@ -29,7 +31,7 @@ public struct NotifyIncomingMessages: Sendable {
                 await presenter.requestAuthorization()
             }
             if let notification = decision.notification {
-                await presenter.present(notification)
+                await presenter.present(notification.withSenderPhoto(decision.sender.flatMap(avatars.photo)))
             }
             return decision.next
         }

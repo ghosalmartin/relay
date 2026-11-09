@@ -10,8 +10,22 @@ public final class InboxViewModel {
     private let observeConnectionStatus: ObserveConnectionStatus
     private let focus: ConversationFocus
     private let loadAvatars: LoadAvatars
+    private let archive: ArchiveConversation
+    private let delete: DeleteConversation
+    private let mute: MuteConversation
 
-    public init(observeInbox: ObserveInbox, observeConnectionStatus: ObserveConnectionStatus, focus: ConversationFocus, loadAvatars: LoadAvatars) {
+    public init(
+        observeInbox: ObserveInbox,
+        observeConnectionStatus: ObserveConnectionStatus,
+        focus: ConversationFocus,
+        loadAvatars: LoadAvatars,
+        archive: ArchiveConversation,
+        delete: DeleteConversation,
+        mute: MuteConversation
+    ) {
+        self.archive = archive
+        self.delete = delete
+        self.mute = mute
         self.observeInbox = observeInbox
         self.observeConnectionStatus = observeConnectionStatus
         self.focus = focus
@@ -29,10 +43,37 @@ public final class InboxViewModel {
         }
     }
 
-    public func send(_ intent: InboxIntent) {
+    @discardableResult
+    public func send(_ intent: InboxIntent) -> Task<Void, Never> {
         switch intent {
         case .selected(let id): apply(.selected(id))
         case .searchChanged(let text): apply(.searchChanged(text))
+        case .shortcutPressed(let position):
+            if let id = state.conversationID(atShortcut: position) { apply(.selected(id)) }
+        case .composeTapped: apply(.composingChanged(true))
+        case .composeDismissed: apply(.composingChanged(false))
+        case .deleteTapped(let id): apply(.deleteRequested(id))
+        case .deleteCancelled: apply(.deleteRequested(nil))
+        case .actionErrorDismissed: apply(.actionFailed(nil))
+        case .archiveTapped(let id):
+            return perform { [archive] () throws(MessagingError) in try await archive(id) }
+        case .muteTapped(let id, let isMuted):
+            return perform { [mute] () throws(MessagingError) in try await mute(id, isMuted: isMuted) }
+        case .deleteConfirmed:
+            guard let id = state.confirmingDelete else { break }
+            apply(.deleteRequested(nil))
+            return perform { [delete] () throws(MessagingError) in try await delete(id) }
+        }
+        return Task {}
+    }
+
+    private func perform(_ action: @escaping @Sendable () async throws(MessagingError) -> Void) -> Task<Void, Never> {
+        Task {
+            do {
+                try await action()
+            } catch {
+                apply(.actionFailed(ThreadViewModel.describe(error)))
+            }
         }
     }
 

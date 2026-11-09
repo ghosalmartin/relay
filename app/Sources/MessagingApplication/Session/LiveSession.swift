@@ -9,6 +9,8 @@ import MessagingDomain
 public final class LiveSession: Sendable {
     public let inbox = LiveValue(InboxSnapshot(conversations: [], isSyncing: true))
     public let connection = LiveValue(ConnectionStatus.connecting)
+    /// Sooner than `connection`, which only gives up on the phone after libgm does.
+    public let phoneNeedsWaking = LiveValue(false)
 
     private let events: AsyncStream<MessagingEvent>
 
@@ -25,6 +27,10 @@ public final class LiveSession: Sendable {
             }
             if let status = ConnectionStatus.after(event) {
                 connection.set(status)
+                phoneNeedsWaking.set(status == .phoneUnreachable)
+            }
+            if event == .phoneSlowToAnswer {
+                phoneNeedsWaking.set(true)
             }
             return updated
         }

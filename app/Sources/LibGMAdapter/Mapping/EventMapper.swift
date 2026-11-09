@@ -9,6 +9,8 @@ enum EventMapper {
         case .paired: .paired
         case .sessionUpdated(let bytes): .sessionChanged(SessionData(bytes: bytes))
         case .initialSyncDone: .initialSyncCompleted
+        case .conversation(let conversation) where !ConversationMapper.belongsInInbox(conversation):
+            .conversationRemoved(ConversationID(conversation.conversationID))
         case .conversation(let conversation): .conversationUpdated(ConversationMapper.conversation(from: conversation))
         case .message(let message, let isHistorical): MessageMapper.message(from: message).map { .messageReceived($0, isHistorical: isHistorical) }
         case .typing(let typing): typingEvent(typing)

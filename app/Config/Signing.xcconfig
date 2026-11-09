@@ -1,0 +1,4 @@
+// Signing is per developer, so your team stays out of the repo. Copy
+// Signing.local.xcconfig.example to Signing.local.xcconfig and put your team in it.
+// Without that the app still builds, but macOS asks about the Keychain on every launch.
+#include? "Signing.local.xcconfig"

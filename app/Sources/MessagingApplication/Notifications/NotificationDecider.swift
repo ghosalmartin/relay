@@ -9,6 +9,14 @@ struct NotificationDecider {
     struct Decision {
         let next: NotificationDecider
         let notification: MessageNotification?
+        /// Who the alert is about, for finding their photo.
+        let sender: ParticipantID?
+
+        init(next: NotificationDecider, notification: MessageNotification?, sender: ParticipantID? = nil) {
+            self.next = next
+            self.notification = notification
+            self.sender = sender
+        }
     }
 
     let inbox: InboxProjection
@@ -41,7 +49,7 @@ struct NotificationDecider {
             conversationID: message.conversationID,
             title: conversation?.title ?? "New Message",
             body: Self.body(of: message, in: conversation)
-        ))
+        ), sender: Self.participant(sending: message))
     }
 
     private func remembering(_ id: MessageID) -> NotificationDecider {
@@ -65,7 +73,12 @@ struct NotificationDecider {
     }
 
     private static func senderName(of message: Message, in conversation: Conversation) -> String? {
-        guard case .participant(let id) = message.sender else { return nil }
+        guard let id = participant(sending: message) else { return nil }
         return conversation.participants.first { $0.id == id }?.displayName
+    }
+
+    private static func participant(sending message: Message) -> ParticipantID? {
+        guard case .participant(let id) = message.sender else { return nil }
+        return id
     }
 }

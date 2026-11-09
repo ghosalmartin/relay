@@ -17,6 +17,14 @@ public extension Attachment {
         return mimeType == "application/pdf" ? "doc.richtext" : "doc"
     }
 
+    var isVideo: Bool { mimeType.hasPrefix("video/") }
+
+    /// Video and audio play in the bubble once fetched, rather than opening another app.
+    var playsInline: Bool { isVideo || mimeType.hasPrefix("audio/") }
+
+    /// Audio only needs room for the controls.
+    var playerHeight: CGFloat { isVideo ? 200 : 44 }
+
     /// Pictures run to the bubble's edges. A failed one is only a line of text, so it's inset like text.
     func fillsBubble(showing content: AttachmentContent?) -> Bool {
         isImage && content != .failed

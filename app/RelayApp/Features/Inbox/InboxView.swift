@@ -22,7 +22,35 @@ struct InboxView: View {
             detail
         }
         .task { await viewModel.run() }
+        .confirmationDialog(
+            "Delete this conversation?",
+            isPresented: isConfirmingDelete,
+            actions: {
+                Button("Delete", role: .destructive) { viewModel.send(.deleteConfirmed) }
+                Button("Cancel", role: .cancel) { viewModel.send(.deleteCancelled) }
+            },
+            message: { Text("It will be deleted from your phone as well.") }
+        )
+        .alert(
+            "That didn't work",
+            isPresented: hasActionError,
+            actions: { Button("OK") { viewModel.send(.actionErrorDismissed) } },
+            message: { Text(viewModel.state.actionError ?? "") }
+        )
+        .sheet(isPresented: isComposing) {
+            NewConversationView(viewModel: environment.makeNewConversationViewModel()) {
+                viewModel.send(.composeDismissed)
+            }
+        }
         .toolbar {
+            ToolbarItem {
+                Button { viewModel.send(.composeTapped) } label: {
+                    Label("New Message", systemImage: "square.and.pencil")
+                }
+                .keyboardShortcut("n")
+                .help("New Message")
+                .accessibilityIdentifier("inbox.compose")
+            }
             ToolbarItem {
                 Menu {
                     Button("Unpair This Mac", role: .destructive, action: onSignOut)
@@ -41,12 +69,14 @@ struct InboxView: View {
             ForEach(viewModel.state.rows) { row in
                 ConversationRowView(row: row)
                     .tag(row.id)
+                    .contextMenu { rowMenu(row.id) }
             }
         }
         .listStyle(.sidebar)
         .searchable(text: searchText, placement: .sidebar, prompt: "Search")
         .overlay { sidebarPlaceholder }
         .accessibilityIdentifier("inbox.list")
+        .background { ConversationShortcuts { viewModel.send(.shortcutPressed($0)) } }
     }
 
     @ViewBuilder
@@ -72,6 +102,27 @@ struct InboxView: View {
 
     private var selection: Binding<ConversationID?> {
         Binding(get: { viewModel.state.selection }, set: { viewModel.send(.selected($0)) })
+    }
+
+    @ViewBuilder
+    private func rowMenu(_ id: ConversationID) -> some View {
+        Button("Mute") { viewModel.send(.muteTapped(id, isMuted: true)) }
+        Button("Unmute") { viewModel.send(.muteTapped(id, isMuted: false)) }
+        Divider()
+        Button("Archive") { viewModel.send(.archiveTapped(id)) }
+        Button("Delete…", role: .destructive) { viewModel.send(.deleteTapped(id)) }
+    }
+
+    private var isConfirmingDelete: Binding<Bool> {
+        Binding(get: { viewModel.state.confirmingDelete != nil }, set: { if !$0 { viewModel.send(.deleteCancelled) } })
+    }
+
+    private var hasActionError: Binding<Bool> {
+        Binding(get: { viewModel.state.actionError != nil }, set: { if !$0 { viewModel.send(.actionErrorDismissed) } })
+    }
+
+    private var isComposing: Binding<Bool> {
+        Binding(get: { viewModel.state.isComposing }, set: { viewModel.send($0 ? .composeTapped : .composeDismissed) })
     }
 
     private var searchText: Binding<String> {

@@ -8,14 +8,19 @@ struct AttachmentView: View {
     let content: AttachmentContent?
     let onAppear: () -> Void
     let onTap: () -> Void
+    let onOpen: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            if attachment.isImage { picture } else { fileCard }
+        if attachment.playsInline, case .loaded(let data) = content {
+            InlineMediaPlayer(attachment: attachment, data: data, onOpen: onOpen)
+        } else {
+            Button(action: onTap) {
+                if attachment.isImage { picture } else { fileCard }
+            }
+            .buttonStyle(.plain)
+            .disabled(!attachment.canOpen)
+            .onAppear { if attachment.isImage { onAppear() } }
         }
-        .buttonStyle(.plain)
-        .disabled(!attachment.canOpen)
-        .onAppear { if attachment.isImage { onAppear() } }
     }
 
     @ViewBuilder

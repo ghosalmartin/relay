@@ -8,6 +8,8 @@ public enum RootReducer: Reducer {
         case .sessionFailed(let message): .failed(message: message)
         case .retrying: .launching
         case .connectionChanged(let status): screen(state, after: status)
+        case .phoneWakeSetupNeeded: state == .inbox ? .settingUpPhoneWake : state
+        case .phoneWakeSetupEnded: state == .settingUpPhoneWake ? .inbox : state
         }
     }
 

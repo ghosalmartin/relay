@@ -19,6 +19,9 @@ targets:
     type: application
     platform: macOS
     sources: [RelayApp]
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
     dependencies:
       - package: RelayKit
         products: [MessagingDomain, MessagingApplication, Presentation, LibGMAdapter, KeychainAdapter, UserNotificationsAdapter]

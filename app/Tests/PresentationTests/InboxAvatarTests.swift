@@ -25,8 +25,28 @@ private func chat(_ id: String, with person: ParticipantID = sam, isGroup: Bool 
         #expect(InboxState(conversations: [chat("c1")], isSyncing: true).avatarsToLoad.isEmpty)
     }
 
-    @Test func aGroupHasNoSinglePhoto() {
-        #expect(InboxState(conversations: [chat("c1", isGroup: true)], isSyncing: false).avatarsToLoad.isEmpty)
+    @Test func aGroupShowsUpToTwoOfItsMembers() {
+        let members = ["a", "b", "c"].map { Participant(id: ParticipantID($0), displayName: $0, phoneNumber: nil, isMe: false) }
+        let me = Participant(id: ParticipantID("me"), displayName: "Me", phoneNumber: nil, isMe: true)
+        let group = Conversation(id: ConversationID("g"), title: "Group", preview: nil, lastActivity: Date(), isUnread: false, isGroup: true, participants: [me] + members)
+        let state = InboxState(
+            conversations: [group],
+            isSyncing: false,
+            avatars: [ParticipantID("a"): Data("a".utf8), ParticipantID("b"): Data("b".utf8)],
+            requestedAvatars: [ParticipantID("a"), ParticipantID("b")]
+        )
+
+        #expect(state.avatarsToLoad.isEmpty)
+        #expect(state.rows[0].avatar == Data("a".utf8))
+        #expect(state.rows[0].secondAvatar == Data("b".utf8))
+        #expect(group.avatarParticipants == [ParticipantID("a"), ParticipantID("b")])
+    }
+
+    @Test func theShortcutsFollowTheListAsShown() {
+        let state = InboxState(conversations: [chat("c1"), chat("c2")])
+
+        #expect(state.conversationID(atShortcut: 2) == ConversationID("c2"))
+        #expect(state.conversationID(atShortcut: 3) == nil)
     }
 
     @Test func nobodyIsAskedForTwice() {
@@ -76,7 +96,10 @@ private func chat(_ id: String, with person: ParticipantID = sam, isGroup: Bool 
             observeInbox: ObserveInbox(session: session),
             observeConnectionStatus: ObserveConnectionStatus(session: session),
             focus: ConversationFocus(),
-            loadAvatars: LoadAvatars(client: client)
+            loadAvatars: LoadAvatars(client: client),
+            archive: ArchiveConversation(client: client),
+            delete: DeleteConversation(client: client),
+            mute: MuteConversation(client: client)
         )
         let running = Task { await viewModel.run() }
 

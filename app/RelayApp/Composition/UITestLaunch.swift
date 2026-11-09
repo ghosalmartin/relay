@@ -18,6 +18,8 @@ enum UITestLaunch {
     static func makeClient() -> FakeMessagingClient {
         let client = FakeMessagingClient()
         client.stubEventsOnStartPairing([.pairingConfirmationEmoji("🦊")])
+        client.stubContacts(.success([Contact(name: "Sam Taylor", phoneNumber: "+447700900001", displayNumber: "07700 900001")]))
+        client.stubConversation(.success(ConversationID("sam")))
         client.onSendText = { [weak client] text, conversation in
             client?.emit(.messageReceived(Message(
                 id: MessageID(UUID().uuidString),
@@ -45,6 +47,11 @@ enum UITestLaunch {
     /// A fake, so the permission prompt can't appear over the window under test.
     static func makePresenter() -> FakeNotificationPresenter {
         FakeNotificationPresenter()
+    }
+
+    /// Already set up, so the flows under test go straight to the inbox.
+    static func makePhoneWaker() -> FakePhoneWaker {
+        FakePhoneWaker()
     }
 
     static func makeStore() -> InMemorySessionStore {

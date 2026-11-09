@@ -27,6 +27,8 @@ public struct InboxProjection: Equatable, Sendable {
                 conversationsByID: conversationsByID.merging([conversation.id: conversation]) { _, updated in updated },
                 hasCompletedInitialSync: hasCompletedInitialSync
             )
+        case .conversationRemoved(let id):
+            InboxProjection(conversationsByID: conversationsByID.filter { $0.key != id }, hasCompletedInitialSync: hasCompletedInitialSync)
         case .initialSyncCompleted:
             InboxProjection(conversationsByID: conversationsByID, hasCompletedInitialSync: true)
         case .loggedOut, .paired:   // a new pairing may be a different phone

@@ -4,6 +4,8 @@ public enum MessagingError: Error, Equatable, Sendable {
     case notPaired
     /// The phone did not answer in time.
     case phoneUnreachable
+    /// The phone didn't answer in the short time pairing allows, which often means it was asleep.
+    case phoneMissedPairing
     case conversationNotFound(ConversationID)
     /// Anything else from the backend, with its message for logs and display.
     case backend(String)

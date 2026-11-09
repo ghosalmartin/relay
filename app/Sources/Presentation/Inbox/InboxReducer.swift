@@ -22,6 +22,12 @@ public enum InboxReducer: Reducer {
             state.with(avatars: state.avatars.merging(photos) { _, new in new })
         case .avatarsFailed(let ids):
             state.with(requestedAvatars: state.requestedAvatars.subtracting(ids))     // the next inbox change tries again
+        case .composingChanged(let isComposing):
+            state.with(isComposing: isComposing)
+        case .deleteRequested(let id):
+            state.with(confirmingDelete: .some(id))
+        case .actionFailed(let message):
+            state.with(actionError: .some(message))
         }
     }
 

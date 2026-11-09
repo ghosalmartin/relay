@@ -4,3 +4,4 @@ xcuserdata/
 .build/
 LibGMKit/Bridge/build/
 app/RelayApp/Relay.entitlements
+app/Config/Signing.local.xcconfig

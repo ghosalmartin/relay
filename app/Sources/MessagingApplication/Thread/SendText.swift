@@ -15,12 +15,12 @@ public struct SendText: Sendable {
         self.client = client
     }
 
-    public func callAsFunction(_ draft: String, to conversation: ConversationID) async throws(Failure) {
+    public func callAsFunction(_ draft: String, to conversation: ConversationID, replyingTo original: MessageID? = nil) async throws(Failure) {
         guard let text = Self.sendableText(from: draft) else {
             throw .emptyMessage
         }
         do {
-            try await client.sendText(text, to: conversation)
+            try await client.sendText(text, to: conversation, replyingTo: original)
         } catch {
             throw .messaging(error)
         }

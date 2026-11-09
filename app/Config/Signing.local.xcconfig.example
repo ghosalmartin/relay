@@ -1,0 +1,4 @@
+// Your team ID is on developer.apple.com under Membership, or in Xcode's Signing settings.
+DEVELOPMENT_TEAM = ABCDE12345
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development

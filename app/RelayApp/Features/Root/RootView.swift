@@ -19,6 +19,12 @@ struct RootView: View {
             ProgressView()
         case .pairing:
             PairingView(viewModel: environment.makePairingViewModel { viewModel.send(.pairingFinished) })
+        case .settingUpPhoneWake:
+            PhoneWakeSetupView(
+                makeWebView: { environment.makePhoneWakeWebView() },
+                onPaired: { viewModel.send(.phoneWakeSetupCompleted) },
+                onSkipped: { viewModel.send(.phoneWakeSetupSkipped) }
+            )
         case .inbox:
             InboxView(environment: environment, onSignOut: { viewModel.send(.signOutTapped) })
         case .failed(let message):

@@ -135,6 +135,45 @@ import Testing
         task.cancel()
     }
 
+    @Test func anAlertCarriesTheSendersPhotoOnceLoaded() async {
+        let client = FakeMessagingClient()
+        let presenter = FakeNotificationPresenter()
+        let book = AvatarBook()
+        book.add([ParticipantID("p1"): Data("photo".utf8)])
+        let notify = NotifyIncomingMessages(client: client, presenter: presenter, focus: ConversationFocus(), avatars: book)
+
+        client.emit(.initialSyncCompleted)
+        client.emit(.messageReceived(Fixtures.message("m1"), isHistorical: false))
+        let task = Task { await notify() }
+
+        #expect(await eventually { presenter.presented.first?.senderPhoto == Data("photo".utf8) })
+        task.cancel()
+    }
+
+    @Test func anAlertForSomeoneWithoutALoadedPhotoStillAppears() async {
+        let client = FakeMessagingClient()
+        let presenter = FakeNotificationPresenter()
+        let notify = NotifyIncomingMessages(client: client, presenter: presenter, focus: ConversationFocus(), avatars: AvatarBook())
+
+        client.emit(.initialSyncCompleted)
+        client.emit(.messageReceived(Fixtures.message("m1"), isHistorical: false))
+        let task = Task { await notify() }
+
+        #expect(await eventually { presenter.presented.count == 1 })
+        #expect(presenter.presented.first?.senderPhoto == nil)
+        task.cancel()
+    }
+
+    @Test func loadedPhotosGoInTheBook() async throws {
+        let client = FakeMessagingClient()
+        let book = AvatarBook()
+        client.stubAvatars(.success([ParticipantID("p1"): Data("photo".utf8)]))
+
+        _ = try await LoadAvatars(client: client, book: book)([ParticipantID("p1")])
+
+        #expect(book.photo(of: ParticipantID("p1")) == Data("photo".utf8))
+    }
+
     @Test func clearsAlertsOnceTheConversationIsOnScreen() async {
         let client = FakeMessagingClient()
         let presenter = FakeNotificationPresenter()

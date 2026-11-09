@@ -13,6 +13,11 @@ public struct InboxState: Equatable, Sendable {
     public let avatars: [ParticipantID: Data]
     /// Already asked for, including people who turned out to have no photo, so nobody is asked for twice.
     public let requestedAvatars: Set<ParticipantID>
+    /// Whether the new conversation sheet is up.
+    public let isComposing: Bool
+    /// The conversation waiting on "are you sure?".
+    public let confirmingDelete: ConversationID?
+    public let actionError: String?
 
     public init(
         conversations: [Conversation] = [],
@@ -22,8 +27,14 @@ public struct InboxState: Equatable, Sendable {
         pendingOpen: ConversationID? = nil,
         searchText: String = "",
         avatars: [ParticipantID: Data] = [:],
-        requestedAvatars: Set<ParticipantID> = []
+        requestedAvatars: Set<ParticipantID> = [],
+        isComposing: Bool = false,
+        confirmingDelete: ConversationID? = nil,
+        actionError: String? = nil
     ) {
+        self.confirmingDelete = confirmingDelete
+        self.actionError = actionError
+        self.isComposing = isComposing
         self.avatars = avatars
         self.requestedAvatars = requestedAvatars
         self.conversations = conversations
@@ -43,7 +54,10 @@ public struct InboxState: Equatable, Sendable {
         pendingOpen: ConversationID?? = nil,
         searchText: String? = nil,
         avatars: [ParticipantID: Data]? = nil,
-        requestedAvatars: Set<ParticipantID>? = nil
+        requestedAvatars: Set<ParticipantID>? = nil,
+        isComposing: Bool? = nil,
+        confirmingDelete: ConversationID?? = nil,
+        actionError: String?? = nil
     ) -> InboxState {
         InboxState(
             conversations: conversations ?? self.conversations,
@@ -53,14 +67,17 @@ public struct InboxState: Equatable, Sendable {
             pendingOpen: pendingOpen ?? self.pendingOpen,
             searchText: searchText ?? self.searchText,
             avatars: avatars ?? self.avatars,
-            requestedAvatars: requestedAvatars ?? self.requestedAvatars
+            requestedAvatars: requestedAvatars ?? self.requestedAvatars,
+            isComposing: isComposing ?? self.isComposing,
+            confirmingDelete: confirmingDelete ?? self.confirmingDelete,
+            actionError: actionError ?? self.actionError
         )
     }
 
     /// The rows to show: conversations matching the search, newest first.
     public var rows: [ConversationRow] {
         conversations.filter(matchesSearch).map { conversation in
-            ConversationRow(conversation, avatar: conversation.avatarParticipant.flatMap { avatars[$0] })
+            ConversationRow(conversation, photos: conversation.avatarParticipants.compactMap { avatars[$0] })
         }
     }
 
@@ -68,7 +85,7 @@ public struct InboxState: Equatable, Sendable {
     /// rather than one for each conversation as it streams in.
     public var avatarsToLoad: Set<ParticipantID> {
         guard !isSyncing else { return [] }
-        return Set(conversations.compactMap(\.avatarParticipant)).subtracting(requestedAvatars)
+        return Set(conversations.flatMap(\.avatarParticipants)).subtracting(requestedAvatars)
     }
 
     /// The banner to show above the list, if any.
@@ -76,6 +93,12 @@ public struct InboxState: Equatable, Sendable {
 
     /// Whether to show "No conversations" (as opposed to a spinner or a list).
     public var isEmpty: Bool { !isSyncing && conversations.isEmpty }
+
+    /// The conversation ⌘ and a digit goes to: its place in the list as shown.
+    public func conversationID(atShortcut position: Int) -> ConversationID? {
+        let visible = rows
+        return visible.indices.contains(position - 1) ? visible[position - 1].id : nil
+    }
 
     public var selectedConversation: Conversation? {
         conversations.first { $0.id == selection }
@@ -98,9 +121,12 @@ public struct ConversationRow: Identifiable, Equatable, Sendable {
     public let isUnread: Bool
     public let initials: String
     public let avatar: Data?
+    /// A second face, for a group.
+    public let secondAvatar: Data?
 
-    init(_ conversation: Conversation, avatar: Data? = nil) {
-        self.avatar = avatar
+    init(_ conversation: Conversation, photos: [Data] = []) {
+        avatar = photos.first
+        secondAvatar = photos.dropFirst().first
         id = conversation.id
         title = conversation.title
         preview = Self.previewText(conversation.preview)
@@ -150,6 +176,15 @@ public enum ConnectionBanner: Equatable, Sendable {
 public enum InboxIntent: Equatable, Sendable {
     case selected(ConversationID?)
     case searchChanged(String)
+    case shortcutPressed(Int)
+    case composeTapped
+    case composeDismissed
+    case archiveTapped(ConversationID)
+    case muteTapped(ConversationID, isMuted: Bool)
+    case deleteTapped(ConversationID)
+    case deleteConfirmed
+    case deleteCancelled
+    case actionErrorDismissed
 }
 
 public enum InboxMutation: Equatable, Sendable {
@@ -161,4 +196,7 @@ public enum InboxMutation: Equatable, Sendable {
     case avatarsRequested(Set<ParticipantID>)
     case avatarsLoaded([ParticipantID: Data])
     case avatarsFailed(Set<ParticipantID>)
+    case composingChanged(Bool)
+    case deleteRequested(ConversationID?)
+    case actionFailed(String?)
 }

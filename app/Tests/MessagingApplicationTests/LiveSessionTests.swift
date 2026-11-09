@@ -65,7 +65,7 @@ import Testing
         let store = InMemorySessionStore(Fixtures.session)
 
         await #expect(throws: MessagingError.phoneUnreachable) {
-            try await Unpair(client: client, store: store)()
+            try await Unpair(client: client, store: store, waker: FakePhoneWaker())()
         }
 
         #expect(store.session == nil)
@@ -82,6 +82,46 @@ import Testing
         let task = Task { await persist() }
 
         #expect(await eventually { store.session == Fixtures.session })
+        task.cancel()
+    }
+}
+
+@Suite struct PhoneNeedsWakingTests {
+    private func running() -> (FakeMessagingClient, LiveSession, Task<Void, Never>) {
+        let client = FakeMessagingClient()
+        let session = LiveSession(client: client)
+        return (client, session, Task { await session.run() })
+    }
+
+    @Test func aSlowAnswerCallsForWakingWithoutChangingTheConnection() async {
+        let (client, session, task) = running()
+        client.emit(.initialSyncCompleted)
+        #expect(await eventually { session.connection.value == .online })
+
+        client.emit(.phoneSlowToAnswer)
+
+        #expect(await eventually { session.phoneNeedsWaking.value })
+        #expect(session.connection.value == .online)
+        task.cancel()
+    }
+
+    @Test func aPhoneReportedUnreachableCallsForWaking() async {
+        let (client, session, task) = running()
+
+        client.emit(.phoneReachabilityChanged(isReachable: false))
+
+        #expect(await eventually { session.phoneNeedsWaking.value })
+        task.cancel()
+    }
+
+    @Test func aReplyEndsTheNeedToWake() async {
+        let (client, session, task) = running()
+        client.emit(.phoneSlowToAnswer)
+        #expect(await eventually { session.phoneNeedsWaking.value })
+
+        client.emit(.phoneReachabilityChanged(isReachable: true))
+
+        #expect(await eventually { !session.phoneNeedsWaking.value })
         task.cancel()
     }
 }

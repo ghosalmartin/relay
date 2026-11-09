@@ -6,7 +6,11 @@ struct ConversationRowView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            AvatarView(initials: row.initials, seed: row.title, photo: row.avatar)
+            if let first = row.avatar, let second = row.secondAvatar {
+                GroupAvatarView(first: first, second: second)
+            } else {
+                AvatarView(initials: row.initials, seed: row.title, photo: row.avatar)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(row.title)

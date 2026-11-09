@@ -1,5 +1,6 @@
 import AppKit
 import MessagingDomain
+import Presentation
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -7,11 +8,12 @@ import UniformTypeIdentifiers
 struct ComposerView: View {
     @Binding var draft: String
     let canSend: Bool
-    let attachment: OutgoingAttachment?
-    let attachmentSize: String?
+    let files: [PendingFile]
+    let replyPreview: String?
+    let onCancelReply: () -> Void
     let onSend: () -> Void
     let onFile: (OutgoingAttachment?) -> Void
-    let onRemoveFile: () -> Void
+    let onRemoveFile: (OutgoingAttachment) -> Void
     @FocusState private var isFocused: Bool
     @State private var isChoosingFile = false
     @State private var pasteMonitor: Any?
@@ -20,8 +22,11 @@ struct ComposerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let attachment {
-                PendingAttachmentView(attachment: attachment, sizeText: attachmentSize, onRemove: onRemoveFile)
+            if let replyPreview {
+                ReplyBannerView(preview: replyPreview, onCancel: onCancelReply)
+            }
+            ForEach(files) { file in
+                PendingAttachmentView(attachment: file.attachment, sizeText: file.sizeText, onRemove: { onRemoveFile(file.attachment) })
             }
             HStack(alignment: .bottom, spacing: 8) {
                 attachButton
@@ -38,8 +43,8 @@ struct ComposerView: View {
             if let pasteMonitor { NSEvent.removeMonitor(pasteMonitor) }
             pasteMonitor = nil
         }
-        .fileImporter(isPresented: $isChoosingFile, allowedContentTypes: Self.sendableTypes) { result in
-            if case .success(let url) = result { onFile(OutgoingAttachmentReader.read(url)) }
+        .fileImporter(isPresented: $isChoosingFile, allowedContentTypes: Self.sendableTypes, allowsMultipleSelection: true) { result in
+            if case .success(let urls) = result { urls.forEach { onFile(OutgoingAttachmentReader.read($0)) } }
         }
     }
 
@@ -80,9 +85,10 @@ struct ComposerView: View {
     /// A text field only accepts text pastes, so a copied picture has to be caught before it gets there.
     private func handleKey(_ event: NSEvent) -> NSEvent? {
         guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
-              event.charactersIgnoringModifiers == "v",
-              let pasted = OutgoingAttachmentReader.pasted(from: .general) else { return event }
-        onFile(pasted)
+              event.charactersIgnoringModifiers == "v" else { return event }
+        let pasted = OutgoingAttachmentReader.pasted(from: .general)
+        guard !pasted.isEmpty else { return event }
+        pasted.forEach(onFile)
         return nil
     }
 

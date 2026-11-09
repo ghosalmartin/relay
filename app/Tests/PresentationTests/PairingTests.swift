@@ -100,12 +100,12 @@ import Testing
 
     @Test func aRetryRemembersHowYouChoseToSignIn() {
         let viewModel = PairingViewModel(pairDevice: PairDevice(client: FakeMessagingClient())) {}
-        #expect(viewModel.state.signInMethod == .browser)
+        #expect(viewModel.state.signInMethod == .embedded)
 
-        viewModel.send(.signInMethodChosen(.embedded))
+        viewModel.send(.signInMethodChosen(.browser))
         viewModel.send(.retryTapped)
 
-        #expect(viewModel.state.signInMethod == .embedded)
+        #expect(viewModel.state.signInMethod == .browser)
     }
 
     @Test func retryChangesTheRunID() {

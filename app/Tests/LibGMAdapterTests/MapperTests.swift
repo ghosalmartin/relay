@@ -4,6 +4,10 @@ import LibGMKit
 import MessagingDomain
 import Testing
 
+@Test func aPhoneThatMissesPairingCanBeRetried() {
+    #expect(ErrorMapper.error(from: .bridge("google account pairing: client init timed out")) == .phoneMissedPairing)
+}
+
 @Suite struct ConversationMapperTests {
     @Test func mapsTheInboxFields() {
         let proto = GM.Conversation.with {
@@ -238,7 +242,6 @@ import Testing
     }
 
     @Test(arguments: [
-        ("google account pairing: client init timed out", "Your phone didn't answer"),
         ("google account pairing: client init timed out (phone hasn't been seen recently)", "hasn't connected"),
         ("google account pairing: no devices found for gaia pairing", "No phone found"),
         ("google account pairing: user chose incorrect emoji on phone", "wrong emoji"),
@@ -262,6 +265,7 @@ import Testing
         (LibGMError.bridge("not logged in"), MessagingError.notPaired),
         (.invalidSavedSession, .notPaired),
         (.bridge("request timeout"), .phoneUnreachable),
+        (.bridge("phone did not respond to request in 1m0s"), .phoneUnreachable),
         (.bridge("something odd"), .backend("something odd")),
     ])
     func mapsErrors(error: LibGMError, expected: MessagingError) {

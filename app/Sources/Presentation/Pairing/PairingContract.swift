@@ -9,7 +9,8 @@ public struct PairingState: Equatable, Sendable {
         case failed(message: String)
     }
 
-    /// Where the user signs in. A browser comes first because passkeys don't work in an embedded page.
+    /// Where the user signs in. The embedded page comes first because it's a single step;
+    /// a browser stays available because passkeys don't work in an embedded page.
     public enum SignInMethod: Equatable, Sendable {
         case browser
         case embedded
@@ -22,7 +23,7 @@ public struct PairingState: Equatable, Sendable {
     /// Why the last paste couldn't be used.
     public let pasteProblem: String?
 
-    public init(step: Step = .signIn, attempt: Int = 0, signInMethod: SignInMethod = .browser, pasteProblem: String? = nil) {
+    public init(step: Step = .signIn, attempt: Int = 0, signInMethod: SignInMethod = .embedded, pasteProblem: String? = nil) {
         self.step = step
         self.attempt = attempt
         self.signInMethod = signInMethod

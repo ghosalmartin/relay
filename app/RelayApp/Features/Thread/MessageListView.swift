@@ -11,6 +11,8 @@ struct MessageListView: View {
     let attachments: [String: AttachmentContent]
     let onAttachmentAppear: (Attachment) -> Void
     let onAttachmentTap: (Attachment) -> Void
+    let actions: MessageActions
+    @State private var position = ScrollPosition(edge: .bottom)
 
     var body: some View {
         ScrollView {
@@ -26,7 +28,8 @@ struct MessageListView: View {
                             bubble: bubble,
                             attachments: attachments,
                             onAttachmentAppear: onAttachmentAppear,
-                            onAttachmentTap: onAttachmentTap
+                            onAttachmentTap: onAttachmentTap,
+                            actions: actions
                         )
                     }
                 }
@@ -35,6 +38,12 @@ struct MessageListView: View {
             .padding(.vertical, 12)
         }
         .defaultScrollAnchor(.bottom)
+        .scrollPosition($position)
+        .onScrollGeometryChange(for: ThreadScrollSnapshot.self) { geometry in
+            ThreadScrollSnapshot(contentHeight: geometry.contentSize.height, visibleBottom: geometry.visibleRect.maxY)
+        } action: { previous, current in
+            if previous.shouldFollow(to: current) { position.scrollTo(edge: .bottom) }
+        }
         .accessibilityIdentifier("thread.messages")
     }
 

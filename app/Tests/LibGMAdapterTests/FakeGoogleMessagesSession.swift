@@ -10,8 +10,13 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
     private let continuation: AsyncStream<LibGMEvent>.Continuation
     private let log = Mutex<[String]>([])
     private let sent = Mutex<[GM.SendMessageRequest]>([])
+    private let sendFailure = Mutex<LibGMError?>(nil)
+    private let uploadFailure = Mutex<LibGMError?>(nil)
+    private let heldFetches = Mutex<AsyncStream<Void>?>(nil)
     private let page = Mutex(GM.ListMessagesResponse())
     private let thumbnails = Mutex(GM.GetThumbnailResponse())
+    private let addressBook = Mutex(GM.ListContactsResponse())
+    private let created = Mutex(GM.GetOrCreateConversationResponse())
     private let inbox = Mutex<Result<GM.ListConversationsResponse, LibGMError>>(.success(GM.ListConversationsResponse()))
 
     init(savedSession: Data?) {
@@ -23,8 +28,19 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
     var sentRequests: [GM.SendMessageRequest] { sent.withLock { $0 } }
 
     func emit(_ event: LibGMEvent) { continuation.yield(event) }
+    /// Fetches then wait, as if for a phone, until the returned continuation is told to go.
+    func holdFetches() -> AsyncStream<Void>.Continuation {
+        let (stream, continuation) = AsyncStream.makeStream(of: Void.self)
+        heldFetches.withLock { $0 = stream }
+        return continuation
+    }
+
     func stubPage(_ response: GM.ListMessagesResponse) { page.withLock { $0 = response } }
     func stubThumbnails(_ response: GM.GetThumbnailResponse) { thumbnails.withLock { $0 = response } }
+    func stubContacts(_ response: GM.ListContactsResponse) { addressBook.withLock { $0 = response } }
+    func stubCreatedConversation(_ response: GM.GetOrCreateConversationResponse) { created.withLock { $0 = response } }
+    func stubSend(_ error: LibGMError) { sendFailure.withLock { $0 = error } }
+    func stubUpload(_ error: LibGMError) { uploadFailure.withLock { $0 = error } }
     func stubInbox(_ result: Result<GM.ListConversationsResponse, LibGMError>) { inbox.withLock { $0 = result } }
 
     func startGoogleAccountPairing(cookies: [String: String]) async throws(LibGMError) {
@@ -45,6 +61,9 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
 
     func fetchMessages(conversationID: String, count: Int64, before cursor: GM.Cursor?) async throws(LibGMError) -> GM.ListMessagesResponse {
         record("fetch:\(conversationID):\(count):\(cursor?.lastItemID ?? "-")")
+        if let held = heldFetches.withLock({ $0 }) {
+            for await _ in held { break }
+        }
         return page.withLock { $0 }
     }
 
@@ -60,11 +79,43 @@ final class FakeGoogleMessagesSession: GoogleMessagesSession {
 
     func uploadMedia(data: Data, fileName: String, mimeType: String) async throws(LibGMError) -> GM.MediaContent {
         record("upload:\(fileName):\(mimeType)")
+        if let failure = uploadFailure.withLock({ $0 }) { throw failure }
         return .with { $0.mediaID = "uploaded-\(fileName)" }
+    }
+
+    private let updates = Mutex<[GM.UpdateConversationRequest]>([])
+    private let reactions = Mutex<[GM.SendReactionRequest]>([])
+    var updateRequests: [GM.UpdateConversationRequest] { updates.withLock { $0 } }
+    var reactionRequests: [GM.SendReactionRequest] { reactions.withLock { $0 } }
+
+    func react(_ request: GM.SendReactionRequest) async throws(LibGMError) -> GM.SendReactionResponse {
+        reactions.withLock { $0.append(request) }
+        return .with { $0.success = true }
+    }
+
+    func deleteMessage(id: String) async throws(LibGMError) -> GM.DeleteMessageResponse {
+        record("deleteMessage:\(id)")
+        return .with { $0.success = true }
+    }
+
+    func updateConversation(_ request: GM.UpdateConversationRequest) async throws(LibGMError) -> GM.UpdateConversationResponse {
+        updates.withLock { $0.append(request) }
+        return .with { $0.success = true }
+    }
+
+    func listContacts() async throws(LibGMError) -> GM.ListContactsResponse {
+        record("contacts")
+        return addressBook.withLock { $0 }
+    }
+
+    func getOrCreateConversation(_ request: GM.GetOrCreateConversationRequest) async throws(LibGMError) -> GM.GetOrCreateConversationResponse {
+        record("getOrCreate:" + request.numbers.map(\.number).joined(separator: ","))
+        return created.withLock { $0 }
     }
 
     func send(_ request: GM.SendMessageRequest) async throws(LibGMError) -> GM.SendMessageResponse {
         sent.withLock { $0.append(request) }
+        if let failure = sendFailure.withLock({ $0 }) { throw failure }
         return GM.SendMessageResponse()
     }
 

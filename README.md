@@ -5,7 +5,8 @@
 > coding agent (Claude Code) from prompts, and it has not been reviewed line by line by a human.
 > Expect bugs. It handles your private messages, and pairing means signing in to your Google account
 > inside the app: the resulting cookies, which give access to that account, are stored in your
-> Keychain. Read the code before you trust it with anything that matters. No support, no warranty,
+> Keychain. A second copy of that login, for the hidden website described under Known limits, is
+> stored by WebKit in the app's own folder, without the Keychain's protection. Read the code before you trust it with anything that matters. No support, no warranty,
 > no promises.
 
 A native macOS client for Google Messages (Android Messages), written in SwiftUI on
@@ -26,9 +27,11 @@ Early and unfinished. There are no releases yet, so you have to build it yoursel
 - **Tested with one real Android phone:** Google account pairing, the inbox and threads, receiving
   pictures and audio, sending text and pictures, macOS notifications, and reconnecting after a
   restart without pairing again.
-- **Written but not confirmed on a real phone:** reactions, replies, shared locations, contact
-  photos in the inbox, clicking a notification to open its conversation, notifications with the
-  window closed, and reconnecting automatically when the phone stops answering.
+- **Written but not confirmed on a real phone:** starting a new conversation, sending reactions
+  and replies, deleting messages, archiving, deleting and muting conversations, playing video and
+  audio in a chat, group photos, shared locations, contact photos in the inbox, replying from or
+  clicking a notification, notifications with the window closed, and reconnecting automatically
+  when the phone stops answering.
 - **Not proven yet:** how long a login lasts. Earlier builds lost theirs within 30 minutes, and the
   fix has only been tested for about an hour.
 
@@ -37,12 +40,17 @@ Known limits:
 - Your phone has to be on and online with Google Messages running. If the app is swiped away or
   Android pauses it, new messages may still arrive but chats can stop loading until you open it.
 - Only one Google Messages client seems to be active at a time, so keep the website closed while
-  using Relay.
+  using Relay. Relay's own hidden copy, below, closes as soon as the phone answers.
+- Muting tells the phone, but libgm can't report which chats are muted, so Relay offers both Mute
+  and Unmute and your Mac still shows alerts for a muted chat.
 - Relay doesn't appear under Device pairing on the phone. Neither did the Google Messages website
   when we checked, so unpair from inside Relay.
-- A message fails if the phone doesn't answer within about a minute. Beeper, which uses the same
-  library, [holds messages until the phone is back](https://help.beeper.com/chat-networks/google-messages-getting-started-guide).
-  Relay should do that too, and show that a message is waiting for your phone.
+- Your phone can stop answering Relay while still delivering new messages. A send it hasn't answered
+  within about a minute shows as waiting, because it can still go out minutes later. Sending it again
+  may send it twice. Loading the Google Messages website has got the phone answering again each time
+  we've tried it in a browser, so Relay asks you to sign in and pair the site once, then loads it out
+  of sight as soon as a chat or send goes unanswered for 5 seconds. That has worked from a hidden page
+  once so far.
 
 ## Layout
 
@@ -87,11 +95,15 @@ brew install xcodegen go
 cd app && xcodegen && open Relay.xcodeproj
 ```
 
+To sign the app with your own team, which stops macOS asking about the Keychain on every launch,
+copy `app/Config/Signing.local.xcconfig.example` to `app/Config/Signing.local.xcconfig` and fill in
+your team ID. That file is ignored by git.
+
 Run the **Relay** scheme. Google has discontinued QR code pairing, so you sign in with the Google
 account on your Android phone instead. Unlock the phone and open Device pairing in Messages first,
-because it only has 20 seconds to answer. Then choose **Sign in here instead** and use your
-password and 2FA, and tap the matching emoji on the phone. If that sign-in doesn't suit your
-account, Relay can open Chrome (where passkeys work) so you can copy one request from DevTools as
+because it only has 20 seconds to answer. Then sign in with your password and 2FA on the page
+Relay shows, and tap the matching emoji on the phone. If that sign-in doesn't suit your account,
+Relay can open Chrome (where passkeys work) so you can copy one request from DevTools as
 cURL and paste it back in.
 
 ## Tests

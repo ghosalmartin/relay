@@ -87,6 +87,8 @@ public final class PairingViewModel {
     static func describe(_ error: any Error) -> String {
         switch error {
         case MessagingError.phoneUnreachable: "Your phone isn't responding. Check it's on and connected."
+        case MessagingError.phoneMissedPairing:
+            "Your phone didn't answer. Open Messages on your phone, check Device pairing is on for this Google account, keep the app open, and try again."
         case MessagingError.backend(let message): message
         default: "Something went wrong."
         }

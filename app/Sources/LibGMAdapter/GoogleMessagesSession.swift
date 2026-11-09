@@ -17,6 +17,11 @@ public protocol GoogleMessagesSession: Sendable {
     func downloadMedia(id: String, key: Data) async throws(LibGMError) -> Data
     func participantThumbnails(ids: [String]) async throws(LibGMError) -> GM.GetThumbnailResponse
     func uploadMedia(data: Data, fileName: String, mimeType: String) async throws(LibGMError) -> GM.MediaContent
+    func react(_ request: GM.SendReactionRequest) async throws(LibGMError) -> GM.SendReactionResponse
+    func deleteMessage(id: String) async throws(LibGMError) -> GM.DeleteMessageResponse
+    func updateConversation(_ request: GM.UpdateConversationRequest) async throws(LibGMError) -> GM.UpdateConversationResponse
+    func listContacts() async throws(LibGMError) -> GM.ListContactsResponse
+    func getOrCreateConversation(_ request: GM.GetOrCreateConversationRequest) async throws(LibGMError) -> GM.GetOrCreateConversationResponse
 }
 
 extension LibGMSession: GoogleMessagesSession {}

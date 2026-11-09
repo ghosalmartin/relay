@@ -1,4 +1,5 @@
 import MessagingApplication
+import MessagingDomain
 import Observation
 
 /// Decides between pairing and the inbox, and keeps credentials saved for the app's lifetime.
@@ -10,17 +11,20 @@ public final class RootViewModel {
     private let persistSessionChanges: PersistSessionChanges
     private let observeConnectionStatus: ObserveConnectionStatus
     private let unpair: Unpair
+    private let phoneWaker: any PhoneWaker
 
     public init(
         startSession: StartSession,
         persistSessionChanges: PersistSessionChanges,
         observeConnectionStatus: ObserveConnectionStatus,
-        unpair: Unpair
+        unpair: Unpair,
+        phoneWaker: any PhoneWaker
     ) {
         self.startSession = startSession
         self.persistSessionChanges = persistSessionChanges
         self.observeConnectionStatus = observeConnectionStatus
         self.unpair = unpair
+        self.phoneWaker = phoneWaker
     }
 
     /// Runs for as long as the window is open. Call from the view's `.task`.
@@ -37,21 +41,35 @@ public final class RootViewModel {
         switch intent {
         case .pairingFinished:
             apply(.paired)
+            offerPhoneWakeSetup()
             return Task {}
         case .retryTapped:
             apply(.retrying)
             return Task { await launch() }
         case .signOutTapped:
             return Task { await signOut() }
+        case .phoneWakeSetupCompleted:
+            phoneWaker.markSetUp()
+            apply(.phoneWakeSetupEnded)
+            return Task {}
+        case .phoneWakeSetupSkipped:
+            apply(.phoneWakeSetupEnded)
+            return Task {}
         }
     }
 
     private func launch() async {
         do {
             apply(.sessionStarted(try await startSession()))
+            offerPhoneWakeSetup()
         } catch {
             apply(.sessionFailed(String(describing: error)))
         }
+    }
+
+    /// Asked again next launch if skipped, because without it a stalled phone stays stalled.
+    private func offerPhoneWakeSetup() {
+        if !phoneWaker.isSetUp { apply(.phoneWakeSetupNeeded) }
     }
 
     private func followConnection() async {

@@ -14,13 +14,13 @@ enum OutgoingAttachmentReader {
         return OutgoingAttachment(data: data, fileName: url.lastPathComponent, mimeType: mimeType)
     }
 
-    /// The copied file or picture, or nil when the paste belongs in the text field. Copying from
+    /// The copied files or picture, or nothing when the paste belongs in the text field. Copying from
     /// a document can put both text and a picture of it on the clipboard, and then text wins.
-    static func pasted(from board: NSPasteboard) -> OutgoingAttachment? {
-        let files = board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]
-        if let file = files?.first { return read(file) }
-        guard board.string(forType: .string) == nil, let png = pngData(from: board) else { return nil }
-        return OutgoingAttachment(data: png, fileName: "Pasted Image.png", mimeType: "image/png")
+    static func pasted(from board: NSPasteboard) -> [OutgoingAttachment] {
+        let files = board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        if !files.isEmpty { return files.compactMap(read) }
+        guard board.string(forType: .string) == nil, let png = pngData(from: board) else { return [] }
+        return [OutgoingAttachment(data: png, fileName: "Pasted Image.png", mimeType: "image/png")]
     }
 
     private static func pngData(from board: NSPasteboard) -> Data? {

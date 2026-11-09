@@ -8,6 +8,7 @@ struct MessageBubbleView: View {
     let attachments: [String: AttachmentContent]
     let onAttachmentAppear: (Attachment) -> Void
     let onAttachmentTap: (Attachment) -> Void
+    let actions: MessageActions
 
     var body: some View {
         HStack {
@@ -53,6 +54,18 @@ struct MessageBubbleView: View {
         .foregroundStyle(bubble.isFromMe ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
         .background(bubbleFill)
         .clipShape(.rect(cornerRadius: 16))
+        .contextMenu { if bubble.canTakeActions { menu } }
+    }
+
+    @ViewBuilder
+    private var menu: some View {
+        Section {
+            ForEach(ThreadState.quickReactions, id: \.self) { emoji in
+                Button(emoji) { actions.react(emoji, bubble.id) }
+            }
+        }
+        Button("Reply") { actions.reply(bubble.id) }
+        Button("Delete…", role: .destructive) { actions.delete(bubble.id) }
     }
 
     @ViewBuilder
@@ -62,7 +75,8 @@ struct MessageBubbleView: View {
                 attachment: attachment,
                 content: attachments[attachment.id],
                 onAppear: { onAttachmentAppear(attachment) },
-                onTap: { onAttachmentTap(attachment) }
+                onTap: { onAttachmentTap(attachment) },
+                onOpen: { actions.openFile(attachment) }
             )
             .padding(.horizontal, attachment.fillsBubble(showing: attachments[attachment.id]) ? 0 : Self.textInset)
             .padding(.vertical, attachment.fillsBubble(showing: attachments[attachment.id]) ? 0 : Self.lineInset)

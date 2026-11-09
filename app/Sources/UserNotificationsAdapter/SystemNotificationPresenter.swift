@@ -6,13 +6,22 @@ import OSLog
 /// Shows message alerts through macOS Notification Centre and reports clicks on them.
 public final class SystemNotificationPresenter: NSObject, NotificationPresenter, UNUserNotificationCenterDelegate, Sendable {
     private static let conversationKey = "conversationID"
+    private static let messageCategory = "message"
+    private static let replyAction = "reply"
     private static let log = Logger(subsystem: "dev.featurenotabug.Relay", category: "notifications")
 
     private let onOpen: @Sendable (ConversationID) -> Void
+    private let onReply: @Sendable (ConversationID, String) -> Void
 
-    /// - Parameter onOpen: called with the conversation when the user clicks an alert.
-    public init(onOpen: @escaping @Sendable (ConversationID) -> Void) {
+    /// - Parameters:
+    ///   - onOpen: called with the conversation when the user clicks an alert.
+    ///   - onReply: called with what the user typed into an alert's Reply field.
+    public init(
+        onOpen: @escaping @Sendable (ConversationID) -> Void,
+        onReply: @escaping @Sendable (ConversationID, String) -> Void = { _, _ in }
+    ) {
         self.onOpen = onOpen
+        self.onReply = onReply
         super.init()
     }
 
@@ -20,6 +29,19 @@ public final class SystemNotificationPresenter: NSObject, NotificationPresenter,
     /// Kept out of `init` because the notification centre aborts in a process with no app bundle.
     public func becomeCenterDelegate() {
         center.delegate = self
+        center.setNotificationCategories([
+            UNNotificationCategory(
+                identifier: Self.messageCategory,
+                actions: [UNTextInputNotificationAction(
+                    identifier: Self.replyAction,
+                    title: "Reply",
+                    options: [],
+                    textInputButtonTitle: "Send",
+                    textInputPlaceholder: "Text Message"
+                )],
+                intentIdentifiers: []
+            ),
+        ])
     }
 
     private var center: UNUserNotificationCenter { .current() }
@@ -62,9 +84,31 @@ public final class SystemNotificationPresenter: NSObject, NotificationPresenter,
         content.title = notification.title
         content.body = notification.body
         content.sound = .default
+        content.categoryIdentifier = messageCategory      // what puts Reply on the alert
         content.threadIdentifier = notification.conversationID.rawValue   // groups alerts by conversation
         content.userInfo = [conversationKey: notification.conversationID.rawValue]
+        content.attachments = photoAttachment(for: notification).map { [$0] } ?? []
         return content
+    }
+
+    /// A photo that can't be attached shouldn't cost the user the alert.
+    private static func photoAttachment(for notification: MessageNotification) -> UNNotificationAttachment? {
+        guard let photo = notification.senderPhoto else { return nil }
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension(fileExtension(of: photo))
+        do {
+            try photo.write(to: file)
+            return try UNNotificationAttachment(identifier: "sender-photo", url: file)
+        } catch {
+            log.error("Couldn't attach photo: \(error, privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Notification Centre goes by the extension, and libgm doesn't say which format a thumbnail is in.
+    static func fileExtension(of photo: Data) -> String {
+        photo.starts(with: [0x89, 0x50, 0x4E, 0x47]) ? "png" : "jpg"
     }
 
     static func conversationID(from userInfo: [AnyHashable: Any]) -> ConversationID? {
@@ -86,7 +130,10 @@ public final class SystemNotificationPresenter: NSObject, NotificationPresenter,
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        if let conversation = Self.conversationID(from: response.notification.request.content.userInfo) {
+        guard let conversation = Self.conversationID(from: response.notification.request.content.userInfo) else { return }
+        if let reply = response as? UNTextInputNotificationResponse {
+            onReply(conversation, reply.userText)
+        } else {
             onOpen(conversation)
         }
     }

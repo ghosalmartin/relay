@@ -9,7 +9,8 @@ final class MainWindowOpener {
 
     func bringToFront() {
         NSApp.activate()
-        if !NSApp.windows.contains(where: \.isVisible) {
+        // Not just any visible window: the hidden website has one too.
+        if !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) {
             open?()
         }
     }

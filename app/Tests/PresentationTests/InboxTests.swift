@@ -168,7 +168,10 @@ import Testing
             observeInbox: ObserveInbox(session: session),
             observeConnectionStatus: ObserveConnectionStatus(session: session),
             focus: focus,
-            loadAvatars: LoadAvatars(client: client)
+            loadAvatars: LoadAvatars(client: client),
+            archive: ArchiveConversation(client: client),
+            delete: DeleteConversation(client: client),
+            mute: MuteConversation(client: client)
         )
         return (viewModel, pump)
     }

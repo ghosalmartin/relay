@@ -95,9 +95,20 @@ import Testing
         let client = FakeMessagingClient()
         let store = InMemorySessionStore(Fixtures.session)
 
-        try await Unpair(client: client, store: store)()
+        try await Unpair(client: client, store: store, waker: FakePhoneWaker())()
 
         #expect(client.calls == [.unpair])
         #expect(store.session == nil)
+    }
+
+    @Test func forgetsTheWebsiteLoginEvenIfThePhoneCantBeTold() async {
+        let client = FakeMessagingClient()
+        client.stubUnpair(throwing: .phoneUnreachable)
+        let waker = FakePhoneWaker()
+
+        try? await Unpair(client: client, store: InMemorySessionStore(Fixtures.session), waker: waker)()
+
+        #expect(waker.calls == [.forget])
+        #expect(!waker.isSetUp)
     }
 }

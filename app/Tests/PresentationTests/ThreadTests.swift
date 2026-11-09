@@ -178,13 +178,13 @@ private func at(_ minutes: Double, day: Double = 0) -> Date {
 
     @Test func failedSendExplainsInPlainWords() async {
         let client = FakeMessagingClient()
-        client.stubSend(throwing: .phoneUnreachable)
+        client.stubSend(throwing: .notPaired)
         let viewModel = makeViewModel(client)
 
         viewModel.send(.draftChanged("hi"))
         await viewModel.send(.sendTapped).value
 
-        #expect(viewModel.state.sendError == "Your phone isn't responding. Check it's on and connected.")
+        #expect(viewModel.state.sendError == "This Mac isn't paired with your phone any more.")
         #expect(viewModel.state.draft == "hi")
     }
 
@@ -223,7 +223,10 @@ private func at(_ minutes: Double, day: Double = 0) -> Date {
             focus: focus ?? visibleFocus(),
             loadAttachment: LoadAttachment(client: client),
             openFile: { _, _ in },
-            sendAttachment: SendAttachment(client: client)
+            sendAttachment: SendAttachment(client: client),
+            observeConnectionStatus: ObserveConnectionStatus(session: LiveSession(client: client)),
+            sendReaction: SendReaction(client: client),
+            deleteMessage: DeleteMessage(client: client)
         )
     }
 }

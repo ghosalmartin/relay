@@ -8,7 +8,7 @@ public struct SendAttachment: Sendable {
         self.client = client
     }
 
-    public func callAsFunction(_ attachment: OutgoingAttachment, caption draft: String, to conversation: ConversationID) async throws(MessagingError) {
-        try await client.sendAttachment(attachment, caption: SendText.sendableText(from: draft), to: conversation)
+    public func callAsFunction(_ attachment: OutgoingAttachment, caption draft: String, to conversation: ConversationID, replyingTo original: MessageID? = nil) async throws(MessagingError) {
+        try await client.sendAttachment(attachment, caption: SendText.sendableText(from: draft), to: conversation, replyingTo: original)
     }
 }

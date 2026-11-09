@@ -35,6 +35,8 @@ public struct MessageBubble: Identifiable, Equatable, Sendable {
 
     public var linkedText: AttributedString { LinkedText.attributed(text) }
     public var hasPicture: Bool { attachments.contains(where: \.isImage) }
+    /// A deleted or unsupported message has nothing to reply to or react to.
+    public var canTakeActions: Bool { placeholder == nil }
 }
 
 /// Turns a flat message list into day separators and grouped bubbles.

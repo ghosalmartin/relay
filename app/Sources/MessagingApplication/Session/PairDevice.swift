@@ -10,6 +10,9 @@ public enum PairingStep: Equatable, Sendable {
 public struct PairDevice: Sendable {
     private let client: any MessagingClient
 
+    /// Each try wakes the phone a little more, but the user is left waiting through every one.
+    static let attempts = 3
+
     public init(client: any MessagingClient) {
         self.client = client
     }
@@ -29,6 +32,19 @@ public struct PairDevice: Sendable {
     }
 
     private func run(
+        with cookies: AccountCookies,
+        reportingTo output: AsyncThrowingStream<PairingStep, any Error>.Continuation
+    ) async throws {
+        for attemptsLeft in (0..<Self.attempts).reversed() {
+            do {
+                return try await attempt(with: cookies, reportingTo: output)
+            } catch MessagingError.phoneMissedPairing where attemptsLeft > 0 {
+                continue
+            }
+        }
+    }
+
+    private func attempt(
         with cookies: AccountCookies,
         reportingTo output: AsyncThrowingStream<PairingStep, any Error>.Continuation
     ) async throws {

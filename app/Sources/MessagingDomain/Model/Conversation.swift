@@ -28,9 +28,9 @@ public struct Conversation: Identifiable, Hashable, Sendable {
         self.participants = participants
     }
 
-    /// Whose photo represents this conversation. Groups have no single person to show.
-    public var avatarParticipant: ParticipantID? {
-        isGroup ? nil : participants.first { !$0.isMe }?.id
+    /// Whose photos represent this conversation: the other person, or two members of a group.
+    public var avatarParticipants: [ParticipantID] {
+        Array(participants.filter { !$0.isMe }.map(\.id).prefix(isGroup ? 2 : 1))
     }
 
     public func markingRead() -> Conversation {

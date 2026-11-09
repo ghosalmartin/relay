@@ -146,7 +146,10 @@ private func bubble(_ id: String, in messages: [Message]) throws -> MessageBubbl
             focus: ConversationFocus(),
             loadAttachment: LoadAttachment(client: client),
             openFile: { opened.files.append(($0, $1)) },
-            sendAttachment: SendAttachment(client: client)
+            sendAttachment: SendAttachment(client: client),
+            observeConnectionStatus: ObserveConnectionStatus(session: LiveSession(client: client)),
+            sendReaction: SendReaction(client: client),
+            deleteMessage: DeleteMessage(client: client)
         )
     }
 

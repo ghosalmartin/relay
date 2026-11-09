@@ -15,6 +15,9 @@ public final class ThreadViewModel {
     private let loadAttachment: LoadAttachment
     private let openFile: @MainActor (Data, _ mimeType: String) -> Void
     private let sendAttachment: SendAttachment
+    private let observeConnectionStatus: ObserveConnectionStatus
+    private let sendReaction: SendReaction
+    private let deleteMessage: DeleteMessage
 
     /// - Parameter openFile: shows an attachment's contents in the app that handles its type.
     public init(
@@ -26,8 +29,14 @@ public final class ThreadViewModel {
         focus: ConversationFocus,
         loadAttachment: LoadAttachment,
         openFile: @escaping @MainActor (Data, _ mimeType: String) -> Void,
-        sendAttachment: SendAttachment
+        sendAttachment: SendAttachment,
+        observeConnectionStatus: ObserveConnectionStatus,
+        sendReaction: SendReaction,
+        deleteMessage: DeleteMessage
     ) {
+        self.observeConnectionStatus = observeConnectionStatus
+        self.sendReaction = sendReaction
+        self.deleteMessage = deleteMessage
         self.sendAttachment = sendAttachment
         self.state = ThreadState(conversation: conversation)
         self.loadHistory = loadHistory
@@ -49,6 +58,7 @@ public final class ThreadViewModel {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.followMessages(live) }
             group.addTask { await self.markReadWhenViewed() }
+            group.addTask { await self.followConnection() }
         }
     }
 
@@ -57,6 +67,22 @@ public final class ThreadViewModel {
             apply(.messageArrived(message))
             if !message.isFromMe { await markLatestRead() }
         }
+    }
+
+    private func followConnection() async {
+        for await status in observeConnectionStatus() {
+            let phoneReturned = state.isPhoneReturn(to: status)
+            apply(.connectionChanged(status))
+            if phoneReturned { await catchUp() }
+        }
+    }
+
+    /// Quietly, because messages already on screen shouldn't give way to a spinner or an error.
+    private func catchUp() async {
+        guard !state.messages.isEmpty else { return await loadLatest() }
+        guard let page = try? await loadHistory(conversationID) else { return }
+        apply(.caughtUp(page))
+        await markLatestRead()
     }
 
     /// Catches up on anything that arrived while the user was in another app.
@@ -73,12 +99,26 @@ public final class ThreadViewModel {
             apply(.draftChanged(text))
         case .sendErrorDismissed:
             apply(.sendErrorDismissed)
+        case .waitingDismissed:
+            apply(.waitingDismissed)
         case .conversationChanged(let conversation):
             apply(.conversationChanged(conversation))
         case .fileRead(let file):
             apply(file.map(ThreadMutation.fileAdded) ?? .sendFailed("Couldn't read that file."))
-        case .fileRemoved:
-            apply(.fileRemoved)
+        case .fileRemoved(let file):
+            apply(.fileRemoved(file))
+        case .replyTapped(let id):
+            apply(.replyStarted(id))
+        case .replyCancelled:
+            apply(.replyCancelled)
+        case .reactionChosen(let emoji, let id):
+            return Task { await react(emoji, to: id) }
+        case .deleteTapped(let id):
+            apply(.deleteRequested(id))
+        case .deleteCancelled:
+            apply(.deleteRequested(nil))
+        case .deleteConfirmed:
+            return Task { await deleteConfirmedMessage() }
         case .sendTapped:
             return Task { await sendDraft() }
         case .loadOlderTapped:
@@ -88,6 +128,14 @@ public final class ThreadViewModel {
         case .attachmentAppeared(let attachment):
             return Task { _ = await contents(of: attachment) }
         case .attachmentTapped(let attachment):
+            return Task {
+                if attachment.playsInline {
+                    _ = await contents(of: attachment)
+                } else {
+                    await open(attachment)
+                }
+            }
+        case .attachmentOpenTapped(let attachment):
             return Task { await open(attachment) }
         }
         return Task {}
@@ -139,18 +187,61 @@ public final class ThreadViewModel {
     private func sendDraft() async {
         guard state.canSend else { return }
         let text = state.draft
-        let file = state.pendingAttachment
+        let files = state.pendingAttachments
+        let reply = state.replyTarget
         apply(.sending)
+        if files.isEmpty {
+            await sendTyped(text, replyingTo: reply)
+        } else {
+            await sendFiles(files, caption: text, replyingTo: reply)
+        }
+    }
+
+    private func sendTyped(_ text: String, replyingTo reply: MessageID?) async {
         do {
-            if let file {
-                try await sendAttachment(file, caption: text, to: conversationID)
-                apply(.fileSent(caption: text))
-            } else {
-                try await sendText(text, to: conversationID)
-                apply(.sent(text))
-            }
+            try await sendText(text, to: conversationID, replyingTo: reply)
+            apply(.sent(text))
+        } catch .messaging(.phoneUnreachable) {
+            apply(.waitingForPhone(WaitingMessage(text: SendText.sendableText(from: text) ?? text, hasFile: false), typed: text, file: nil))
         } catch {
             apply(.sendFailed(Self.describe(error)))
+        }
+    }
+
+    /// One message per file, as libgm's own bridge sends them. The first carries the caption and the reply.
+    /// Stops at the first file that doesn't get through; the rest stay in the composer.
+    private func sendFiles(_ files: [OutgoingAttachment], caption: String, replyingTo reply: MessageID?) async {
+        for (index, file) in files.enumerated() {
+            let isFirst = index == 0
+            let thisCaption = isFirst ? caption : ""
+            do {
+                try await sendAttachment(file, caption: thisCaption, to: conversationID, replyingTo: isFirst ? reply : nil)
+                apply(.fileSent(file, caption: thisCaption))
+            } catch .phoneUnreachable {
+                let waiting = WaitingMessage(text: SendText.sendableText(from: thisCaption) ?? "", hasFile: true)
+                return apply(.waitingForPhone(waiting, typed: thisCaption, file: file))
+            } catch {
+                return apply(.sendFailed(Self.describe(error)))
+            }
+        }
+    }
+
+    private func react(_ emoji: String, to message: MessageID) async {
+        do {
+            try await sendReaction(emoji, to: message, in: conversationID)
+        } catch {
+            apply(.actionFailed(Self.describe(error)))
+        }
+    }
+
+    private func deleteConfirmedMessage() async {
+        guard let id = state.confirmingDelete else { return }
+        apply(.deleteRequested(nil))
+        do {
+            try await deleteMessage(id)
+            apply(.messageRemoved(id))
+        } catch {
+            apply(.actionFailed(Self.describe(error)))
         }
     }
 
