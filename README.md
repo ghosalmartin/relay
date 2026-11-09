@@ -87,24 +87,63 @@ View ──Intent──▶ ViewModel ──calls──▶ Use case ──▶ Mes
 Views render `state` and call `send(intent)`, nothing else. Reducers are pure
 functions, so every display rule is a plain unit test.
 
-## Build and run (macOS 15+, Xcode 16+, Go 1.26+)
+## Build it yourself
+
+You need macOS 15 or later, Xcode (last built with 27.2, and opened once so its licence is accepted),
+Homebrew, and an Android phone running Google Messages.
+
+**1. Get the code and the tools.**
 
 ```sh
+git clone https://github.com/ghosalmartin/relay.git
+cd relay
 brew install xcodegen go
-./LibGMKit/Bridge/build-xcframework.sh
-cd app && xcodegen && open Relay.xcodeproj
 ```
 
-To sign the app with your own team, which stops macOS asking about the Keychain on every launch,
-copy `app/Config/Signing.local.xcconfig.example` to `app/Config/Signing.local.xcconfig` and fill in
-your team ID. That file is ignored by git.
+**2. Build the Go bridge.** This compiles libgm for both Mac architectures and takes a few minutes.
 
-Run the **Relay** scheme. Google has discontinued QR code pairing, so you sign in with the Google
-account on your Android phone instead. Unlock the phone and open Device pairing in Messages first,
-because it only has 20 seconds to answer. Then sign in with your password and 2FA on the page
-Relay shows, and tap the matching emoji on the phone. If that sign-in doesn't suit your account,
-Relay can open Chrome (where passkeys work) so you can copy one request from DevTools as
-cURL and paste it back in.
+```sh
+./LibGMKit/Bridge/build-xcframework.sh
+```
+
+**3. Optional: sign it with your own Apple team.** Without this the app still builds and runs, but
+macOS asks about the Keychain on every launch. A free Apple account is enough.
+
+```sh
+cp app/Config/Signing.local.xcconfig.example app/Config/Signing.local.xcconfig
+```
+
+Then put your team ID in that file, which git ignores. You'll find the ID in Xcode's Signing settings
+or on developer.apple.com under Membership.
+
+**4. Build and install.**
+
+```sh
+cd app
+xcodegen
+xcodebuild build -project Relay.xcodeproj -scheme Relay -configuration Debug \
+  -destination 'platform=macOS' -derivedDataPath /tmp/relay-build
+mkdir -p ~/Applications
+ditto /tmp/relay-build/Build/Products/Debug/Relay.app ~/Applications/Relay.app
+open ~/Applications/Relay.app
+```
+
+Or run `open Relay.xcodeproj` instead and run the **Relay** scheme from Xcode. Use the Debug
+configuration either way: a Release build currently crashes the Swift compiler.
+
+To update later, run `git pull`, repeat step 2 and then step 4, after quitting Relay.
+
+### First launch
+
+Google has discontinued QR code pairing, so you sign in with the Google account on your Android
+phone instead. Unlock the phone and open Device pairing in Messages first, because it only has 20
+seconds to answer. Then sign in with your password and 2FA on the page Relay shows, and tap the
+matching emoji on the phone. If that sign-in doesn't suit your account, Relay can open Chrome (where
+passkeys work) so you can copy one request from DevTools as cURL and paste it back in.
+
+Relay then asks you to sign in and pair the Google Messages website too, which is one more sign-in
+and emoji. It uses that page, out of sight, to wake your phone when it stops answering. Press **Done**
+once you can see your chats, or **Not Now** to skip it and be asked again next launch.
 
 ## Tests
 
