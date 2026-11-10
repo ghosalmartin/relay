@@ -83,6 +83,10 @@ final class RelayUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing"] + extraArguments
         app.launch()
+        // It can launch behind the active app, and then the first click only brings it forward:
+        // a toolbar button ignores it, so the click is lost.
+        app.activate()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
     }
 
     private func conversation(_ id: String) -> XCUIElement {
